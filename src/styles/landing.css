@@ -639,14 +639,13 @@
 /* ---------- Écrans (cartes d'interface) ---------- */
 
 .rw-device {
-  border: 6px solid var(--rw-night);
   border-radius: 36px;
   background: var(--rw-card);
   padding: 22px;
 }
 
 .rw-device-dark {
-  border-color: #0c1812;
+  border-color: transparent;
   background: #1d3327;
   color: var(--rw-ivory);
 }

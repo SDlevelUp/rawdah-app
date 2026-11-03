@@ -173,7 +173,6 @@ export default function Landing() {
               Rawdah est une application musulmane pour les femmes : tes prières, tes adhkar, ton
               Coran et ton cycle, du Fajr au Icha, dans un espace calme.
             </p>
-            <p className="rw-signature">Une routine douce, à ton rythme.</p>
             <div className="rw-cta">
               <a href={authHref} className="rw-btn rw-btn-dark">
                 Créer mon espace
