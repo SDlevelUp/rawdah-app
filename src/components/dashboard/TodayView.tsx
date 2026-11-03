@@ -353,7 +353,7 @@ export function TodayView({
                     Continuer
                   </button>
                 </div>
-                <p className="border-t border-(--n-line) py-2 text-[13px] text-(--n-muted)">
+                <p className="border-t border-(--n-line) pt-2 text-[13px] text-(--n-muted)">
                   {adhkar.invocation.proof.sources.map((source, index) => (
                     <span key={`${source.collection}-${source.number}`}>
                       {index > 0 && " · "}

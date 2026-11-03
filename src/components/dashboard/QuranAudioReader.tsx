@@ -18,13 +18,10 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-const API = "https://api.alquran.cloud/v1";
-
-type ApiResponse<T> = {
-  code: number;
-  status: string;
-  data: T;
-};
+const QDC_API = "https://api.quran.com/api/v4";
+const AUDIO_CDN = "https://verses.quran.com/";
+const ALQURAN_API = "https://api.alquran.cloud/v1";
+const DEFAULT_RECITER = "7"; // Mishari Rashid al-Afasy
 
 type Surah = {
   number: number;
@@ -44,11 +41,11 @@ type Ayah = {
   numberInSurah: number;
   text: string;
   audio: string;
-  transliteration?: string;
-  translation?: string;
 };
 
 type SurahAudio = Surah & { ayahs: Ayah[] };
+
+type TranslitAyah = { numberInSurah: number; text: string };
 
 type QuranJson = {
   sourates: {
@@ -73,12 +70,71 @@ export type QuranPlaybackProgress = {
   reciter: string;
 };
 
-async function fetchApi<T>(url: string, signal: AbortSignal): Promise<T> {
+type QdcReciter = {
+  id: number;
+  reciter_name: string;
+  style: string | null;
+};
+
+type QdcAudioFile = {
+  verse_key: string;
+  url: string;
+};
+
+function surahsFromJson(json: QuranJson): Surah[] {
+  return json.sourates.map((s) => ({
+    number: s.position,
+    name: s.nom,
+    englishName: s.nom_phonetique,
+    numberOfAyahs: s.versets.length,
+    revelationType: s.revelation === "mecquoise" ? "Meccan" : "Medinan",
+  }));
+}
+
+function mapReciters(raw: QdcReciter[]): Reciter[] {
+  return raw.map((r) => {
+    const label = r.style ? `${r.reciter_name} (${r.style})` : r.reciter_name;
+    return { identifier: String(r.id), englishName: label, name: label };
+  });
+}
+
+function buildSurahAudio(
+  surah: Surah,
+  files: QdcAudioFile[],
+): SurahAudio {
+  const ayahs: Ayah[] = files.map((f) => {
+    const verse = Number(f.verse_key.split(":")[1]);
+    return { numberInSurah: verse, text: "", audio: `${AUDIO_CDN}${f.url}` };
+  });
+  ayahs.sort((a, b) => a.numberInSurah - b.numberInSurah);
+  return { ...surah, ayahs };
+}
+
+async function fetchQdc<T>(url: string, signal: AbortSignal): Promise<T> {
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error("Le service de lecture est indisponible.");
-  const result = (await response.json()) as ApiResponse<T>;
-  if (result.code !== 200) throw new Error("Impossible de charger ce contenu.");
-  return result.data;
+  return (await response.json()) as T;
+}
+
+async function fetchTransliteration(
+  surahNumber: number,
+  signal: AbortSignal,
+): Promise<TranslitAyah[]> {
+  try {
+    const response = await fetch(
+      `${ALQURAN_API}/surah/${surahNumber}/en.transliteration`,
+      { signal },
+    );
+    if (!response.ok) return [];
+    const result = (await response.json()) as {
+      code: number;
+      data: { ayahs: { numberInSurah: number; text: string }[] };
+    };
+    if (result.code !== 200) return [];
+    return result.data.ayahs;
+  } catch {
+    return [];
+  }
 }
 
 export function QuranAudioReader({
@@ -100,10 +156,10 @@ export function QuranAudioReader({
   const [reciters, setReciters] = useState<Reciter[]>([]);
   const [basmala, setBasmala] = useState("");
   const [selectedSurah, setSelectedSurah] = useState(1);
-  const [selectedReciter, setSelectedReciter] = useState("ar.alafasy");
+  const [selectedReciter, setSelectedReciter] = useState(DEFAULT_RECITER);
   const [surahData, setSurahData] = useState<SurahAudio | null>(null);
   const [quranJsonData, setQuranJsonData] = useState<QuranJson | null>(null);
-  const [transliterationData, setTransliterationData] = useState<SurahAudio | null>(null);
+  const [translitAyahs, setTranslitAyahs] = useState<TranslitAyah[]>([]);
   const [startAyah, setStartAyah] = useState(1);
   const [endAyah, setEndAyah] = useState(1);
   const [currentAyah, setCurrentAyah] = useState(1);
@@ -135,25 +191,31 @@ export function QuranAudioReader({
 
   useEffect(() => {
     const controller = new AbortController();
+    const signal = controller.signal;
     Promise.all([
-      fetchApi<Surah[]>(`${API}/surah`, controller.signal),
-      fetchApi<Reciter[]>(
-        `${API}/edition?format=audio&language=ar&type=versebyverse`,
-        controller.signal,
+      fetch("https://raw.githubusercontent.com/mehdi-stark/Coran-Quran/master/quran.json", { signal }),
+      fetchQdc<{ recitations: QdcReciter[] }>(
+        `${QDC_API}/resources/recitations`,
+        signal,
       ),
-      fetchApi<Ayah>(`${API}/ayah/1/ar.alafasy`, controller.signal),
-      fetchApi<SurahAudio>(`${API}/surah/1/ar.alafasy`, controller.signal),
-      fetchApi<SurahAudio>(`${API}/surah/1/en.transliteration`, controller.signal),
-      fetch("https://raw.githubusercontent.com/mehdi-stark/Coran-Quran/master/quran.json", { signal: controller.signal }),
+      fetchQdc<{ audio_files: QdcAudioFile[] }>(
+        `${QDC_API}/quran/recitations/${DEFAULT_RECITER}?chapter_number=1`,
+        signal,
+      ),
+      fetchTransliteration(1, signal),
     ])
-      .then(async ([surahList, reciterList, basmalaAyah, audioData, transliterationData, quranResponse]) => {
+      .then(async ([quranResponse, reciterResponse, audioResponse, translit]) => {
         const quranJson = await quranResponse.json() as QuranJson;
+        const surahList = surahsFromJson(quranJson);
+        const reciterList = mapReciters(reciterResponse.recitations);
+        const surah1 = surahList[0];
+        const audioData = buildSurahAudio(surah1, audioResponse.audio_files);
+        setQuranJsonData(quranJson);
         setSurahs(surahList);
         setReciters(reciterList);
-        setBasmala(basmalaAyah.text.replace(/^\uFEFF/, "").trim());
+        setBasmala(quranJson.sourates[0].versets[0].text_arabe.replace(/^\uFEFF/, "").trim());
         setSurahData(audioData);
-        setQuranJsonData(quranJson);
-        setTransliterationData(transliterationData);
+        setTranslitAyahs(translit);
         setStartAyah(1);
         setEndAyah(audioData.numberOfAyahs);
         setCurrentAyah(1);
@@ -176,19 +238,26 @@ export function QuranAudioReader({
   useEffect(() => {
     if (!reciters.length || !reciters.some((reciter) => reciter.identifier === selectedReciter))
       return;
+    const surah = surahs.find((s) => s.number === selectedSurah);
+    if (!surah) return;
     const controller = new AbortController();
+    const signal = controller.signal;
     setIsLoading(true);
     setError(null);
     setIsPlaying(false);
     setLastCompletedAyah(0);
     setIsProgressSaved(false);
     Promise.all([
-      fetchApi<SurahAudio>(`${API}/surah/${selectedSurah}/${selectedReciter}`, controller.signal),
-      fetchApi<SurahAudio>(`${API}/surah/${selectedSurah}/en.transliteration`, controller.signal),
+      fetchQdc<{ audio_files: QdcAudioFile[] }>(
+        `${QDC_API}/quran/recitations/${selectedReciter}?chapter_number=${selectedSurah}`,
+        signal,
+      ),
+      fetchTransliteration(selectedSurah, signal),
     ])
-      .then(([audioData, transliterationData]) => {
+      .then(([audioResponse, translit]) => {
+        const audioData = buildSurahAudio(surah, audioResponse.audio_files);
         setSurahData(audioData);
-        setTransliterationData(transliterationData);
+        setTranslitAyahs(translit);
         const pendingResume = pendingResumeRef.current;
         if (
           pendingResume &&
@@ -232,7 +301,7 @@ export function QuranAudioReader({
         if (!controller.signal.aborted) setIsLoading(false);
       });
     return () => controller.abort();
-  }, [selectedReciter, selectedSurah, reciters]);
+  }, [selectedReciter, selectedSurah, reciters, surahs]);
 
   useEffect(() => {
     if (!resumePosition || !surahs.length || !reciters.length) return;
@@ -631,7 +700,7 @@ export function QuranAudioReader({
                   </span>
                   {showTransliteration && (
                     <span className="n-ayah-translit block">
-                      {transliterationData?.ayahs.find(
+                      {translitAyahs.find(
                         (item) => item.numberInSurah === ayah.numberInSurah,
                       )?.text ?? "Phonétique non disponible."}
                     </span>
@@ -738,8 +807,7 @@ export function QuranAudioReader({
           </div>
         )}
         <p className="mt-3 text-[13px] leading-5 text-(--n-muted)">
-          Texte arabe et audio : Al Qur’an Cloud. Touche un verset pour
-          l’écouter à partir de là.
+          Audio : Quran.com. Touche un verset pour l’écouter à partir de là.
         </p>
       </div>
     </div>

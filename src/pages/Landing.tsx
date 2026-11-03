@@ -106,8 +106,8 @@ const eveningGrade =
 
 // Asr : al-Kahf (18:10), texte et traduction mot à mot du Dr Usama Nonnenmacher
 // (https://github.com/DrUsamaN/CoranMot), repris sans modification.
-// Al-Kahf 18:10 récité par Saoud al-Shuraim (choix de Sarah, 2026-10-27) ; même source que le lecteur de l’app (alquran.cloud).
-const kahfAudio = "https://cdn.islamic.network/quran/audio/64/ar.saoodshuraym/2150.mp3";
+// Al-Kahf 18:10 récité par Saoud al-Shuraim (choix de Sarah, 2026-10-27) ; source : Quran.com CDN.
+const kahfAudio = "https://verses.quran.com/Shuraym/mp3/018010.mp3";
 
 const kahfVerse = {
   arabic:
