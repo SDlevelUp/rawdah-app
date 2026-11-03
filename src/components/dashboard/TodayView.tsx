@@ -166,9 +166,9 @@ export function TodayView({
   const nowMinutes = date.getHours() * 60 + date.getMinutes();
   const prayerTimes = prayer.times
     ? prayerNames.map((name) => ({
-        name,
-        time: prayer.times![name.toLowerCase() as keyof PrayerTimes],
-      }))
+      name,
+      time: prayer.times![name.toLowerCase() as keyof PrayerTimes],
+    }))
     : null;
   const prayerMinutes = prayerTimes?.map(({ time }) => toMinutes(time)) ?? [];
   const nextIndex = prayerMinutes.findIndex((minutes) => minutes > nowMinutes);
@@ -320,7 +320,7 @@ export function TodayView({
 
         {modules.adhkar && (
           <article
-            className={`n-card n-rise flex flex-col gap-3 pb-3! ${modules.quran ? "lg:col-span-4" : "lg:col-span-6"}`}
+            className={`n-card n-rise flex flex-col gap-3 pb-0! ${modules.quran ? "lg:col-span-4" : "lg:col-span-6"}`}
             aria-label="Adhkar du moment"
           >
             <div className="flex items-center justify-between gap-3">
@@ -353,7 +353,7 @@ export function TodayView({
                     Continuer
                   </button>
                 </div>
-                <p className="border-t border-(--n-line) pt-2 text-[13px] text-(--n-muted)">
+                <p className="border-t border-(--n-line) py-2 text-[13px] text-(--n-muted)">
                   {adhkar.invocation.proof.sources.map((source, index) => (
                     <span key={`${source.collection}-${source.number}`}>
                       {index > 0 && " · "}
