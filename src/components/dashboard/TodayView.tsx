@@ -320,7 +320,7 @@ export function TodayView({
 
         {modules.adhkar && (
           <article
-            className={`n-card n-rise flex flex-col gap-3 pb-0! ${modules.quran ? "lg:col-span-4" : "lg:col-span-6"}`}
+            className={`n-card n-rise flex flex-col gap-3 pb-0 ${modules.quran ? "lg:col-span-4" : "lg:col-span-6"}`}
             aria-label="Adhkar du moment"
           >
             <div className="flex items-center justify-between gap-3">
