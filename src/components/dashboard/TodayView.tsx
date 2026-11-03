@@ -320,7 +320,7 @@ export function TodayView({
 
         {modules.adhkar && (
           <article
-            className={`n-card n-rise flex flex-col gap-4 ${modules.quran ? "lg:col-span-4" : "lg:col-span-6"}`}
+            className={`n-card n-rise flex flex-col gap-3 pb-3! ${modules.quran ? "lg:col-span-4" : "lg:col-span-6"}`}
             aria-label="Adhkar du moment"
           >
             <div className="flex items-center justify-between gap-3">
@@ -353,7 +353,7 @@ export function TodayView({
                     Continuer
                   </button>
                 </div>
-                <p className="border-t border-(--n-line) pt-3 text-[13px] text-(--n-muted)">
+                <p className="border-t border-(--n-line) pt-2 text-[13px] text-(--n-muted)">
                   {adhkar.invocation.proof.sources.map((source, index) => (
                     <span key={`${source.collection}-${source.number}`}>
                       {index > 0 && " · "}
@@ -382,57 +382,64 @@ export function TodayView({
         )}
 
         {modules.quran && (
-          <article
-            className={`n-card n-card-tint n-rise flex flex-col ${modules.adhkar ? "lg:col-span-2" : "lg:col-span-6"}`}
-            aria-label="Reprendre la lecture"
-          >
-            <div className="flex flex-col gap-2">
-              <span className="n-label">Reprendre la lecture du Coran</span>
-              <p className="n-display mt-1 text-[24px] leading-tight">
-                {quran.surah ?? "Aucune lecture récente"}
-              </p>
-              {quran.detail && (
-                <p className="text-[15px] text-(--n-muted)">{quran.detail}</p>
-              )}
-              <button type="button" onClick={onOpenQuran} className="n-btn n-btn-sage mt-2 self-start">
-                {quran.surah ? "Continuer" : "Ouvrir le Coran"}
-              </button>
-            </div>
+          <div className="flex flex-col gap-4 lg:col-span-2">
+            <article
+              className="n-card n-card-tint n-rise flex flex-col"
+              aria-label="Reprendre la lecture du Coran"
+            >
+              <div className="flex flex-col gap-2">
+                <span className="n-label">Reprendre la lecture du Coran</span>
+                <p className="n-display mt-1 text-[24px] leading-tight">
+                  {quran.surah ?? "Aucune lecture récente"}
+                </p>
+                {quran.detail && (
+                  <p className="text-[15px] text-(--n-muted)">{quran.detail}</p>
+                )}
+                <button type="button" onClick={onOpenQuran} className="n-btn n-btn-sage mt-2 self-start">
+                  {quran.surah ? "Continuer" : "Ouvrir le Coran"}
+                </button>
+              </div>
+            </article>
 
-            <div className="mt-auto flex flex-col gap-2 pt-5">
-              <span className="n-label">Reprendre la lecture</span>
-              {scienceBook ? (
-                <>
-                  {scienceBook.status === "to-read" && (
-                    <p className="text-[13px] font-semibold text-(--n-muted)">Ta prochaine lecture</p>
-                  )}
-                  <p className="n-display text-[20px] leading-tight">{scienceBook.title}</p>
-                  <p className="text-[14px] text-(--n-muted)">{scienceBook.author}</p>
-                  <button
-                    type="button"
-                    onClick={onOpenScienceBooks}
-                    className="n-btn n-btn-ghost mt-2 self-start px-4! py-2.5! text-sm!"
-                  >
-                    {scienceBook.status === "in-progress" ? "Continuer" : "Commencer"}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="text-[15px] leading-6">
-                    Commence ta prochaine lecture aujourd’hui : quelques pages suffisent pour
-                    reprendre le fil.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={onOpenScienceBooks}
-                    className="n-btn n-btn-ghost mt-2 self-start px-4! py-2.5! text-sm!"
-                  >
-                    Choisir un livre
-                  </button>
-                </>
-              )}
-            </div>
-          </article>
+            <article
+              className="n-card n-card-tint n-rise flex flex-col"
+              aria-label="Reprendre la lecture"
+            >
+              <div className="flex flex-col gap-2">
+                <span className="n-label">Reprendre la lecture</span>
+                {scienceBook ? (
+                  <>
+                    {scienceBook.status === "to-read" && (
+                      <p className="text-[13px] font-semibold text-(--n-muted)">Ta prochaine lecture</p>
+                    )}
+                    <p className="n-display text-[20px] leading-tight">{scienceBook.title}</p>
+                    <p className="text-[14px] text-(--n-muted)">{scienceBook.author}</p>
+                    <button
+                      type="button"
+                      onClick={onOpenScienceBooks}
+                      className="n-btn n-btn-sage mt-2 self-start"
+                    >
+                      {scienceBook.status === "in-progress" ? "Continuer" : "Commencer"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[15px] leading-6">
+                      Commence ta prochaine lecture aujourd’hui : quelques pages suffisent pour
+                      reprendre le fil.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={onOpenScienceBooks}
+                      className="n-btn n-btn-sage mt-2 self-start"
+                    >
+                      Choisir un livre
+                    </button>
+                  </>
+                )}
+              </div>
+            </article>
+          </div>
         )}
 
         {modules.cycle && (

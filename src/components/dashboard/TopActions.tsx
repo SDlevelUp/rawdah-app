@@ -73,7 +73,7 @@ export function TopActions({
   const [seen, setSeen] = useState(readSeen);
   const [openMenu, setOpenMenu] = useState<"bell" | "profile" | null>(null);
   const unreadCount = annonces.filter((annonce) => !seen.includes(annonce.id)).length;
-  const initial = firstName ? firstName.slice(0, 1).toLocaleUpperCase("fr-FR") : "N";
+  const initial = (firstName || email || "?").slice(0, 1).toLocaleUpperCase("fr-FR");
 
   const openBell = (open: boolean) => {
     setOpenMenu(open ? "bell" : null);

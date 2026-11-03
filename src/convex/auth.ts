@@ -16,6 +16,12 @@ const google = Google({
 const password = Password({
   verify: passwordVerify,
   reset: passwordReset,
+  profile(params) {
+    return {
+      email: (params.email as string).trim().toLowerCase(),
+      name: typeof params.name === "string" && params.name.trim() ? params.name.trim() : undefined,
+    };
+  },
   validatePasswordRequirements(value: string) {
     if (value.length < 8 || value.length > 128) {
       throw new ConvexError("Ton mot de passe doit contenir entre 8 et 128 caractères.");

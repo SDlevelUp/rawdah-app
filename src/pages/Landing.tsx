@@ -505,13 +505,7 @@ export default function Landing() {
         </div>
 
         <footer className="rw-final rw-sep">
-          <div className="rw-wrap">
-            <h2>Demain, au Fajr, une nouvelle journée commence.</h2>
-            <a href={authHref} className="rw-btn rw-btn-dark mt-8">
-              Créer mon espace
-            </a>
-          </div>
-          <div className="rw-wrap rw-wordmark-stage" aria-hidden="true">
+<div className="rw-wrap rw-wordmark-stage" aria-hidden="true">
             <span className="rw-wordmark">Rawdah</span>
             <span className="rw-wordmark-pill rw-wordmark-pill-left">Chaque invocation avec sa source</span>
             <span className="rw-wordmark-pill rw-wordmark-pill-right">Zéro publicité</span>

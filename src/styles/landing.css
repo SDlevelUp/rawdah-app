@@ -992,7 +992,7 @@
 
 .rw-final {
   overflow: hidden;
-  padding: 72px 0 0;
+  padding: 0;
   text-align: center;
 }
 
@@ -1012,7 +1012,7 @@
 /* Grand « Rawdah » en couleur unie, avec deux étiquettes posées dessus (inspiration Calyra, sans dégradé). */
 .rw-wordmark-stage {
   position: relative;
-  margin-top: 112px;
+  margin-top: 32px;
   container-type: inline-size; /* le mot se règle sur la largeur du contenu : jamais coupé */
 }
 

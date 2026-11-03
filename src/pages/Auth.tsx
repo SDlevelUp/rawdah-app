@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail, UserX } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail, User, UserX } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -360,6 +360,20 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                               </button>
                             ))}
                           </div>
+                          {mode === "signUp" && (
+                            <div className="relative">
+                              <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                              <Input
+                                name="name"
+                                placeholder="Ton prénom"
+                                type="text"
+                                className="pl-9"
+                                autoComplete="given-name"
+                                disabled={isLoading}
+                                required
+                              />
+                            </div>
+                          )}
                           <div className="relative">
                             <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
