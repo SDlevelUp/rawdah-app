@@ -17,10 +17,11 @@ const password = Password({
   verify: passwordVerify,
   reset: passwordReset,
   profile(params) {
-    return {
-      email: (params.email as string).trim().toLowerCase(),
-      name: typeof params.name === "string" && params.name.trim() ? params.name.trim() : undefined,
-    };
+    const email = (params.email as string).trim().toLowerCase();
+    const name = typeof params.name === "string" ? params.name.trim() : "";
+    const result: Record<string, string> & { email: string } = { email };
+    if (name) result.name = name;
+    return result;
   },
   validatePasswordRequirements(value: string) {
     if (value.length < 8 || value.length > 128) {
