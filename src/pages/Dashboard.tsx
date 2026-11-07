@@ -28,7 +28,6 @@ import {
   format,
   parseISO,
   startOfMonth,
-  subDays,
   subMonths,
 } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -156,6 +155,29 @@ function readStored<T>(key: string, fallback: T): T {
   }
 }
 
+// Mois et année hégiriens (calendrier Umm al-Qura) d’une date AAAA-MM-JJ.
+const hijriPartsFormatter = (() => {
+  try {
+    return new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", {
+      year: "numeric",
+      month: "numeric",
+      timeZone: "UTC",
+    });
+  } catch {
+    return null;
+  }
+})();
+
+function hijriMonthYear(date: string) {
+  if (!hijriPartsFormatter) return null;
+  const parts = hijriPartsFormatter.formatToParts(
+    new Date(`${date}T12:00:00.000Z`),
+  );
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  return Number.isFinite(month) && Number.isFinite(year) ? { month, year } : null;
+}
+
 function todayKey() {
   return new Intl.DateTimeFormat("fr-CA").format(new Date());
 }
@@ -170,7 +192,11 @@ export default function Dashboard() {
   // continue pendant la navigation, dans une mini-fenêtre.
   const [hasOpenedQuran, setHasOpenedQuran] = useState(false);
   if (activeView === "quran" && !hasOpenedQuran) setHasOpenedQuran(true);
-  const [isExcusePeriod, setIsExcusePeriod] = useState(false);
+  // Choix manuel du ‘Udhr pour la journée ; sans choix, il suit le cycle noté.
+  const [udhrOverride, setUdhrOverride] = useState<{
+    date: string;
+    value: boolean;
+  } | null>(() => readStored("nour-udhr-override", null));
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() =>
     readStored("nour-sidebar-collapsed", false),
@@ -302,6 +328,7 @@ export default function Dashboard() {
     currentInvocation !== undefined &&
     currentRepetitionCount >= currentInvocation.repetitions;
   const records = cycleDays ?? [];
+  const isCycleLoaded = cycleDays !== undefined;
   const selectedDayKey = format(selectedDate, "yyyy-MM-dd");
   const clockDate = new Date(clock);
   const clockMinutes = clockDate.getHours() * 60 + clockDate.getMinutes();
@@ -340,14 +367,8 @@ export default function Dashboard() {
   const recordedPeriodDates = new Set(
     records.filter((entry) => entry.isPeriodDay).map((entry) => entry.date),
   );
-  const periodStarts = [...recordedPeriodDates]
-    .sort()
-    .filter(
-      (date) =>
-        !recordedPeriodDates.has(
-          format(subDays(parseISO(date), 1), "yyyy-MM-dd"),
-        ),
-    );
+  // Un jour oublié au milieu des règles (un seul jour non coché) ne coupe
+  // pas la période : les jours séparés d’au plus 2 jours forment une seule série.
   const periodRuns = [...recordedPeriodDates]
     .sort()
     .reduce<string[][]>((runs, date) => {
@@ -358,27 +379,38 @@ export default function Dashboard() {
       }
       const previousDate = lastRun[lastRun.length - 1];
       if (
-        differenceInCalendarDays(parseISO(date), parseISO(previousDate)) === 1
+        differenceInCalendarDays(parseISO(date), parseISO(previousDate)) <= 2
       )
         lastRun.push(date);
       else runs.push([date]);
       return runs;
     }, []);
+  const periodStarts = periodRuns.map((run) => run[0]);
   const cycleNotes = records
     .filter((entry) => entry.note?.trim())
     .sort((first, second) => second.date.localeCompare(first.date));
-  const currentPeriodRun = periodRuns.find((run) => run.includes(today));
+  const currentPeriodRun = periodRuns.find(
+    (run) => run[0] <= today && today <= run[run.length - 1],
+  );
   const currentPeriodDay = currentPeriodRun
     ? differenceInCalendarDays(new Date(), parseISO(currentPeriodRun[0])) + 1
     : null;
+  const isTodayPeriodDay = currentPeriodRun !== undefined;
   const completedPeriodRuns = periodRuns.filter(
-    (run) => run !== currentPeriodRun,
+    (run) => run !== currentPeriodRun && run[run.length - 1] < today,
   );
+  const periodRunLength = (run: string[]) =>
+    differenceInCalendarDays(
+      parseISO(run[run.length - 1]),
+      parseISO(run[0]),
+    ) + 1;
   const recentPeriodDurations = completedPeriodRuns
     .slice(-3)
-    .map((run) => run.length);
+    .map(periodRunLength);
+  // Les moyennes restent masquées tant qu’il n’y a pas au moins deux règles
+  // terminées (durée) ou deux cycles complets (durée du cycle).
   const averagePeriodLength =
-    recentPeriodDurations.length > 0
+    recentPeriodDurations.length >= 2
       ? Math.round(
           recentPeriodDurations.reduce((total, length) => total + length, 0) /
             recentPeriodDurations.length,
@@ -388,12 +420,15 @@ export default function Dashboard() {
     currentPeriodDay !== null && averagePeriodLength !== null
       ? Math.max(0, averagePeriodLength - currentPeriodDay)
       : null;
-  const recentStarts = periodStarts.slice(-3);
-  const cycleIntervals = recentStarts
+  // Un écart de moins de 15 jours ou de plus de 60 jours entre deux débuts
+  // n’est pas compté comme un cycle (saisie incomplète ou mois non noté).
+  const cycleIntervals = periodStarts
     .slice(1)
     .map((date, index) =>
-      differenceInCalendarDays(parseISO(date), parseISO(recentStarts[index])),
-    );
+      differenceInCalendarDays(parseISO(date), parseISO(periodStarts[index])),
+    )
+    .filter((interval) => interval >= 15 && interval <= 60)
+    .slice(-3);
   const averageCycleLength =
     cycleIntervals.length >= 2
       ? Math.round(
@@ -406,18 +441,43 @@ export default function Dashboard() {
     ? differenceInCalendarDays(new Date(), parseISO(latestPeriodStart)) + 1
     : null;
   const expectedNextPeriod =
-    averageCycleLength !== null &&
-    averageCycleLength >= 15 &&
-    averageCycleLength <= 60
-      ? addDays(
-          parseISO(recentStarts[recentStarts.length - 1]),
-          averageCycleLength,
-        )
+    averageCycleLength !== null && latestPeriodStart
+      ? addDays(parseISO(latestPeriodStart), averageCycleLength)
       : null;
   const daysLate = expectedNextPeriod
     ? differenceInCalendarDays(new Date(), expectedNextPeriod)
     : null;
   const isPeriodLate = daysLate !== null && daysLate > 2;
+  // Jours de règles notés pendant le Ramadan (mois 9 du calendrier hégirien),
+  // regroupés par année, pour proposer le nombre de jours de jeûne à rattraper.
+  const ramadanPeriodDays = [...recordedPeriodDates]
+    .filter((date) => date <= today)
+    .reduce<Record<number, number>>((byYear, date) => {
+      const hijri = hijriMonthYear(date);
+      if (hijri?.month === 9) byYear[hijri.year] = (byYear[hijri.year] ?? 0) + 1;
+      return byYear;
+    }, {});
+  const ramadanYears = Object.keys(ramadanPeriodDays)
+    .map(Number)
+    .sort((first, second) => first - second);
+  const suggestedQadaTotal = ramadanYears.reduce(
+    (total, year) => total + ramadanPeriodDays[year],
+    0,
+  );
+  const hasUdhrOverride = udhrOverride?.date === today;
+  const isExcusePeriod = hasUdhrOverride
+    ? udhrOverride.value
+    : isTodayPeriodDay;
+  const changeExcusePeriod = (enabled: boolean) => {
+    const next = enabled === isTodayPeriodDay ? null : { date: today, value: enabled };
+    setUdhrOverride(next);
+    try {
+      if (next) localStorage.setItem("nour-udhr-override", JSON.stringify(next));
+      else localStorage.removeItem("nour-udhr-override");
+    } catch {
+      // Stockage indisponible : le choix vaut pour la session.
+    }
+  };
   const hasUnreadNotes =
     personalNotes?.some((note) => note.isUnread && !note.archived) ?? false;
   const visiblePersonalNotes = personalNotes
@@ -507,11 +567,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!cycleSettings) return;
-    setQadaRamadanTotal(String(cycleSettings.qadaRamadanTotal ?? 0));
+    const savedTotal = cycleSettings.qadaRamadanTotal ?? 0;
+    // Compteur jamais rempli : on pré-remplit avec les jours de règles notés
+    // pendant le Ramadan (à confirmer avec « Enregistrer »).
+    setQadaRamadanTotal(
+      String(savedTotal === 0 && isCycleLoaded ? suggestedQadaTotal : savedTotal),
+    );
     setQadaRamadanCompleted(String(cycleSettings.qadaRamadanCompleted ?? 0));
   }, [
     cycleSettings?.qadaRamadanCompleted,
     cycleSettings?.qadaRamadanTotal,
+    isCycleLoaded,
+    suggestedQadaTotal,
   ]);
 
   useEffect(() => {
@@ -992,7 +1059,8 @@ export default function Dashboard() {
         isCollapsed={isSidebarCollapsed}
         isDarkMode={isDarkMode}
         onNavigate={navigateToView}
-        onExcusePeriodChange={setIsExcusePeriod}
+        isExcuseFromCycle={isTodayPeriodDay && !hasUdhrOverride}
+        onExcusePeriodChange={changeExcusePeriod}
         onCollapse={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
         onDarkModeChange={setIsDarkMode}
         onSignOut={() => void handleSignOut()}
@@ -1698,8 +1766,34 @@ export default function Dashboard() {
                         {isSavingQadaRamadan ? "Enregistrement…" : "Enregistrer"}
                       </button>
                     </div>
+                    {suggestedQadaTotal > 0 && (
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-(--n-mauve-tint) px-4 py-3">
+                        <p className="text-[13px] leading-5">
+                          D’après ton calendrier :{" "}
+                          {ramadanYears
+                            .map(
+                              (year) =>
+                                `${ramadanPeriodDays[year]} jour${ramadanPeriodDays[year] > 1 ? "s" : ""} de règles pendant le Ramadan ${year}`,
+                            )
+                            .join(", ")}
+                          .
+                          {(cycleSettings?.qadaRamadanTotal ?? 0) === 0 &&
+                            " Le compteur est pré-rempli, il reste à l’enregistrer."}
+                        </p>
+                        {Number(qadaRamadanTotal) !== suggestedQadaTotal && (
+                          <button
+                            type="button"
+                            className="n-btn n-btn-ghost px-4! py-2! text-sm!"
+                            onClick={() => setQadaRamadanTotal(String(suggestedQadaTotal))}
+                          >
+                            Utiliser {suggestedQadaTotal} jour{suggestedQadaTotal > 1 ? "s" : ""}
+                          </button>
+                        )}
+                      </div>
+                    )}
                     <p className="mt-3 text-[13px] text-(--n-muted)">
-                      Un simple compteur personnel. Pour les règles du rattrapage, réfère-toi à une
+                      Dates du Ramadan selon le calendrier Umm al-Qura, à ajuster si ton
+                      Ramadan a commencé un autre jour. Un simple compteur personnel. Pour les règles du rattrapage, réfère-toi à une
                       personne de science.
                     </p>
                   </section>

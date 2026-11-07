@@ -651,8 +651,14 @@
   transition: opacity 0.2s ease;
 }
 
-.n-agenda-item[data-state="past"] {
-  opacity: 0.45;
+/* Créneaux passés : texte atténué mais lisible (plus de voile à 45 %). */
+.n-agenda-item[data-state="past"] .n-agenda-time,
+.n-agenda-item[data-state="past"] .n-agenda-title {
+  color: var(--n-muted);
+}
+
+.n-agenda-item[data-state="past"][data-kind="prayer"] .n-agenda-dot {
+  background: var(--n-paper);
 }
 
 .n-agenda-time {
@@ -1775,9 +1781,13 @@
   padding: 0;
 }
 
-.n-side-item:hover {
-  background: var(--n-sage-tint);
-  color: var(--n-ink);
+/* Survol réservé aux souris : sur écran tactile, l’état :hover restait
+   collé aux éléments touchés et faisait croire à plusieurs pages actives. */
+@media (hover: hover) and (pointer: fine) {
+  .n-side-item:not([aria-current="page"]):not([aria-pressed="true"]):hover {
+    background: var(--n-sage-tint);
+    color: var(--n-ink);
+  }
 }
 
 .n-side-item[aria-current="page"] {
