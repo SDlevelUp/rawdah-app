@@ -1,6 +1,6 @@
 import { addDays, format, subDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Lock } from "lucide-react";
+import { CirclePause, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AdhkarInvocation, AdhkarSession } from "@/convex/adhkarData";
 import type { PrayerTimes } from "@/hooks/use-prayer-times";
@@ -12,7 +12,7 @@ const moduleLabels: Record<TodayModule, string> = {
   rappel: "Rappel du jour",
   adhkar: "Adhkar du moment",
   quran: "Reprendre la lecture",
-  cycle: "Cycle",
+  cycle: "Mon cycle",
   notes: "Mes notes",
 };
 
@@ -133,6 +133,8 @@ type TodayViewProps = {
   onOpenCycle: () => void;
   onOpenNotes: () => void;
   onOpenSettings: () => void;
+  // Mode ‘Udhr du jour : rappel discret, le réglage se fait dans « Mon cycle ».
+  isExcusePeriod?: boolean;
 };
 
 export function TodayView({
@@ -150,6 +152,7 @@ export function TodayView({
   onOpenCycle,
   onOpenNotes,
   onOpenSettings,
+  isExcusePeriod = false,
 }: TodayViewProps) {
   const [modules, setModules] = useState(readModules);
   const [isCustomizing, setIsCustomizing] = useState(false);
@@ -228,6 +231,18 @@ export function TodayView({
           <span className="text-[13px]"> (date hégirienne indicative)</span>
         </p>
       </header>
+
+      {isExcusePeriod && (
+        <div className="n-udhr-note n-rise mt-6" role="status">
+          <CirclePause className="size-4.5 shrink-0" strokeWidth={1.8} aria-hidden="true" />
+          <p className="min-w-0 flex-1">
+            <b>Mode ‘Udhr activé.</b> Les prières sont masquées de Ma journée.
+          </p>
+          <button type="button" onClick={onOpenCycle} className="n-link shrink-0 text-sm">
+            Modifier
+          </button>
+        </div>
+      )}
 
       <div className="mt-8 grid gap-4 lg:grid-cols-6">
         {/* Prochaine prière : toujours affichée */}
@@ -445,7 +460,7 @@ export function TodayView({
         {modules.cycle && (
           <article className="n-card n-rise grid gap-4 lg:col-span-6 lg:grid-cols-[1fr_auto] lg:items-center" aria-label="Cycle">
             <div>
-              <span className="n-label text-(--n-mauve)!">Cycle</span>
+              <span className="n-label text-(--n-mauve)!">Mon cycle</span>
               <h2 className="n-display mt-3 text-[24px] leading-tight">
                 {cycle.currentPeriodDay !== null
                   ? `Jour ${cycle.currentPeriodDay} · prière et jeûne en pause`

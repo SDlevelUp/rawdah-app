@@ -404,7 +404,7 @@
   background: #b4473a;
 }
 
-/* Barre d'onglets mobile */
+/* Barre d'onglets mobile : quatre entrées, libellé toujours visible sous l'icône. */
 .n-tabbar {
   position: fixed;
   right: 12px;
@@ -413,7 +413,7 @@
   z-index: 40;
   display: flex;
   gap: 2px;
-  border-radius: 999px;
+  border-radius: 26px;
   background: var(--n-ink);
   padding: 6px;
   box-shadow: 0 10px 30px rgba(31, 42, 34, 0.25);
@@ -423,23 +423,26 @@
   position: relative;
   display: flex;
   flex: 1;
-  height: 48px;
+  min-width: 0;
+  min-height: 56px;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 3px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 20px;
   background: transparent;
+  padding: 6px 2px;
   color: #aeb8ad;
-  font-size: 14px;
+  font-size: 11.5px;
   font-weight: 600;
+  line-height: 1.1;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Classes non stratifiées : elles l'emportent sur `lg:hidden`, d'où ce masquage explicite. */
 @media (min-width: 1024px) {
-  .n-tabbar,
-  .n-sheet,
-  .n-sheet-backdrop {
+  .n-tabbar {
     display: none;
   }
 }
@@ -449,45 +452,85 @@
 }
 
 .n-tab > span {
-  display: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .n-tab[aria-current="page"] {
-  flex: 2.4;
   background: var(--n-bg);
   color: var(--n-ink);
 }
 
-.n-tab[aria-current="page"] > span {
-  display: inline;
-}
-
 .n-tab .n-unread {
   position: absolute;
-  top: 10px;
-  right: 18px;
+  top: 8px;
+  right: calc(50% - 18px);
 }
 
-.n-sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 45;
-  background: rgba(31, 42, 34, 0.35);
+/* Rappel du mode ‘Udhr sur Aujourd'hui */
+.n-udhr-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--n-line);
+  border-radius: var(--n-radius-lg);
+  background: var(--n-mauve-tint);
+  padding: 10px 14px;
+  color: var(--n-mauve-text);
+  font-size: 14px;
+  line-height: 1.4;
 }
 
-/* Panneau du bas (mobile) : ouvert par « Plus » ou par le bouton menu du haut. */
-.n-sheet {
-  position: fixed;
-  right: 12px;
-  bottom: calc(max(14px, env(safe-area-inset-bottom)) + 70px);
-  left: 12px;
-  z-index: 46;
+/* Page « Mon espace » */
+.n-space-list {
+  display: grid;
+  gap: 8px;
+}
+
+@media (min-width: 640px) {
+  .n-space-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.n-space-item {
+  display: flex;
+  width: 100%;
+  min-height: 68px;
+  align-items: center;
+  gap: 14px;
   border: 1px solid var(--n-line);
   border-radius: var(--n-radius-lg);
   background: var(--n-paper);
-  padding: 14px;
+  padding: 12px 14px;
   color: var(--n-ink);
-  box-shadow: 0 10px 30px rgba(31, 42, 34, 0.2);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.n-space-item:hover {
+  border-color: var(--n-sage);
+}
+
+.n-space-item:focus-visible {
+  outline: 2px solid var(--n-sage);
+  outline-offset: 2px;
+}
+
+.n-space-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--n-sage-tint);
+  color: var(--n-sage-dark);
+}
+
+.dark-dashboard .n-space-icon {
+  color: var(--n-sage);
 }
 
 /* ---------- Animation d'entrée ---------- */
