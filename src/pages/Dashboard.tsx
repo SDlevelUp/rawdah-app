@@ -16,6 +16,8 @@ import {
 } from "@/components/dashboard/quranPlaybackResume";
 import { ScienceJournal } from "@/components/dashboard/ScienceJournal";
 import { TodayView } from "@/components/dashboard/TodayView";
+import { MySpaceView } from "@/components/dashboard/MySpaceView";
+import { UdhrToggle } from "@/components/dashboard/UdhrToggle";
 import { prayerCalculation, usePrayerTimes } from "@/hooks/use-prayer-times";
 import { api } from "@/convex/_generated/api";
 import { adhkarBySession, type AdhkarSession } from "@/convex/adhkarData";
@@ -31,7 +33,7 @@ import {
   subMonths,
 } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Archive, ArchiveRestore, LocateFixed, MapPin, Menu, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, LocateFixed, MapPin, Trash2 } from "lucide-react";
 import { PlaceSearch } from "@/components/dashboard/PlaceSearch";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
@@ -197,7 +199,6 @@ export default function Dashboard() {
     date: string;
     value: boolean;
   } | null>(() => readStored("nour-udhr-override", null));
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() =>
     readStored("nour-sidebar-collapsed", false),
   );
@@ -1055,35 +1056,19 @@ export default function Dashboard() {
       <DashboardSidebar
         activeView={activeView}
         hasUnreadNotes={hasUnreadNotes}
-        isExcusePeriod={isExcusePeriod}
         isCollapsed={isSidebarCollapsed}
-        isDarkMode={isDarkMode}
         onNavigate={navigateToView}
-        isExcuseFromCycle={isTodayPeriodDay && !hasUdhrOverride}
-        onExcusePeriodChange={changeExcusePeriod}
         onCollapse={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
-        onDarkModeChange={setIsDarkMode}
-        onSignOut={() => void handleSignOut()}
-        isMenuOpen={isMobileMenuOpen}
-        onMenuOpenChange={setIsMobileMenuOpen}
       />
       <div
         className={`min-h-screen bg-background transition-[padding] duration-300 ease-in-out ${isSidebarCollapsed ? "lg:pl-18" : "lg:pl-65"}`}
       >
         <header className={`n-topbar ${activeView === "overview" ? "n-topbar-plain" : ""}`}>
           <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6 xl:px-8">
-            {/* Mobile : menu à gauche, logo au centre, cloche et profil à droite.
-                Sur ordinateur, menu et logo sont dans la barre latérale. */}
+            {/* Mobile : logo au centre, profil à droite ; les modules passent par la barre du bas.
+                Sur ordinateur, logo et menu sont dans la barre latérale. */}
             <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center lg:hidden">
-              <button
-                type="button"
-                onClick={() => setIsMobileMenuOpen((open) => !open)}
-                aria-expanded={isMobileMenuOpen}
-                aria-label="Ouvrir le menu"
-                className="n-top-btn justify-self-start"
-              >
-                <Menu className="size-4.5" strokeWidth={1.8} />
-              </button>
+              <span aria-hidden="true" />
               <button
                 type="button"
                 onClick={() => navigateToView("overview")}
@@ -1222,6 +1207,7 @@ export default function Dashboard() {
                       onOpenCycle={() => navigateToView("periods")}
                       onOpenNotes={() => navigateToView("notes")}
                       onOpenSettings={() => navigateToView("settings")}
+                      isExcusePeriod={isExcusePeriod}
                     />
                   )}
 
@@ -1477,9 +1463,17 @@ export default function Dashboard() {
                   <div className="n-page-head px-1">
                     <div>
                       <span className="n-label">Suivi privé</span>
-                      <h1 className="n-page-title">Cycle</h1>
+                      <h1 className="n-page-title">Mon cycle</h1>
                     </div>
                     <span className="n-chip">Enregistré dans ton compte</span>
+                  </div>
+
+                  <div className="n-card">
+                    <UdhrToggle
+                      isExcusePeriod={isExcusePeriod}
+                      isExcuseFromCycle={isTodayPeriodDay && !hasUdhrOverride}
+                      onChange={changeExcusePeriod}
+                    />
                   </div>
 
                   {isPeriodLate && expectedNextPeriod && (
@@ -1911,7 +1905,7 @@ export default function Dashboard() {
                   <div className="n-page-head px-1">
                     <div>
                       <span className="n-label">Espace personnel</span>
-                      <h1 className="n-page-title">Notes</h1>
+                      <h1 className="n-page-title">Mes notes</h1>
                     </div>
                   </div>
 
@@ -2292,12 +2286,16 @@ export default function Dashboard() {
               )}
             </section>
 
+            {activeView === "space" && (
+              <MySpaceView hasUnreadNotes={hasUnreadNotes} onNavigate={navigateToView} />
+            )}
+
             {activeView === "settings" && (
               <section id="dashboard-settings" className="scroll-mt-24 space-y-5">
                 <div className="n-page-head px-1">
                   <div>
                     <span className="n-label">Préférences</span>
-                    <h1 className="n-page-title">Réglages</h1>
+                    <h1 className="n-page-title">Paramètres</h1>
                   </div>
                 </div>
 

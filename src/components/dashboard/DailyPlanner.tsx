@@ -245,8 +245,8 @@ export function DailyPlanner({
         <>
           <p className="mt-3 text-sm text-(--n-muted)">
             {prayerTimes
-              ? "Les horaires de prière sont calculés selon ta position (méthode expliquée dans Réglages)."
-              : "Configure ta position dans Réglages pour afficher les horaires de prière locaux."}
+              ? "Les horaires de prière sont calculés selon ta position (méthode expliquée dans Paramètres)."
+              : "Configure ta position dans Paramètres pour afficher les horaires de prière locaux."}
           </p>
 
           {isExcusePeriod && (
