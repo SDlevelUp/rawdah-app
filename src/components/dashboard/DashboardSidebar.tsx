@@ -18,6 +18,8 @@ type DashboardSidebarProps = {
   activeView: DashboardView;
   hasUnreadNotes: boolean;
   isExcusePeriod: boolean;
+  // Vrai quand le ‘Udhr est activé automatiquement par un jour de règles noté.
+  isExcuseFromCycle?: boolean;
   isCollapsed: boolean;
   isDarkMode: boolean;
   onNavigate: (view: DashboardView) => void;
@@ -36,6 +38,7 @@ export function DashboardSidebar({
   activeView,
   hasUnreadNotes,
   isExcusePeriod,
+  isExcuseFromCycle = false,
   isCollapsed,
   isDarkMode,
   onNavigate,
@@ -69,7 +72,9 @@ export function DashboardSidebar({
         />
       </div>
       <p className="mt-1.5 text-[12px] leading-[1.35] opacity-70">
-        Masque les créneaux de prière du planning.
+        {isExcuseFromCycle
+          ? "Activé automatiquement : jour de règles noté dans ton cycle."
+          : "Masque les créneaux de prière du planning."}
       </p>
     </div>
   );

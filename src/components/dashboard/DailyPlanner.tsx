@@ -307,6 +307,11 @@ export function DailyPlanner({
               );
             })}
           </ol>
+          {visiblePlannerEvents.length > 0 && nextEventIndex === -1 && (
+            <p className="n-now mt-2" role="status">
+              Journée terminée · {now.toTimeString().slice(0, 5)}
+            </p>
+          )}
           {visiblePlannerEvents.length === 0 && (
             <p className="mt-6 text-[15px] text-(--n-muted)">
               Rien de prévu pour l’instant. Ajoute ce que tu souhaites faire aujourd’hui.
