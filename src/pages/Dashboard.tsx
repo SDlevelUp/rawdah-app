@@ -1491,7 +1491,28 @@ export default function Dashboard() {
                         )}
                       </div>
                     </div>
-
+                    <div className="n-card n-rise mt-4 grid grid-cols-2 gap-5">
+                      {[
+                        { label: "Jours notés", value: String(daysTrackedThisMonth), hint: "ce mois-ci" },
+                        { label: "Débuts notés", value: String(periodStarts.length), hint: "au total" },
+                        {
+                          label: "Durée des règles",
+                          value: averagePeriodLength ? String(averagePeriodLength) : "—",
+                          hint: averagePeriodLength ? `jour${averagePeriodLength === 1 ? "" : "s"} en moyenne` : "à calculer",
+                        },
+                        {
+                          label: "Durée du cycle",
+                          value: averageCycleLength ? String(averageCycleLength) : "—",
+                          hint: averageCycleLength ? "jours en moyenne" : "à calculer",
+                        },
+                      ].map((stat) => (
+                        <div key={stat.label}>
+                          <p className="text-[13px] font-semibold text-(--n-muted)">{stat.label}</p>
+                          <p className="n-display mt-2 text-[30px] leading-none">{stat.value}</p>
+                          <p className="mt-1 text-[13px] text-(--n-muted)">{stat.hint}</p>
+                        </div>
+                      ))}
+                    </div>
                     </div>
                     <div className="n-stack lg:col-span-5">
                     <div id="cycle-day-editor" className="n-card min-w-0 flex-1">
@@ -1663,30 +1684,7 @@ export default function Dashboard() {
                       )}
                     </details>
                     </div>
-                    <div className="lg:col-span-7">
-                    <div className="n-card n-rise grid grid-cols-2 gap-5">
-                      {[
-                        { label: "Jours notés", value: String(daysTrackedThisMonth), hint: "ce mois-ci" },
-                        { label: "Débuts notés", value: String(periodStarts.length), hint: "au total" },
-                        {
-                          label: "Durée des règles",
-                          value: averagePeriodLength ? String(averagePeriodLength) : "—",
-                          hint: averagePeriodLength ? `jour${averagePeriodLength === 1 ? "" : "s"} en moyenne` : "à calculer",
-                        },
-                        {
-                          label: "Durée du cycle",
-                          value: averageCycleLength ? String(averageCycleLength) : "—",
-                          hint: averageCycleLength ? "jours en moyenne" : "à calculer",
-                        },
-                      ].map((stat) => (
-                        <div key={stat.label}>
-                          <p className="text-[13px] font-semibold text-(--n-muted)">{stat.label}</p>
-                          <p className="n-display mt-2 text-[30px] leading-none">{stat.value}</p>
-                          <p className="mt-1 text-[13px] text-(--n-muted)">{stat.hint}</p>
-                        </div>
-                      ))}
-                    </div>
-                  <section className="n-card" aria-labelledby="qada-heading">
+                  <section className="n-card lg:col-span-7" aria-labelledby="qada-heading">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
                         <span className="n-label">Ramadan</span>
@@ -1785,7 +1783,6 @@ export default function Dashboard() {
                       personne de science.
                     </p>
                   </section>
-                    </div>
                   </div>
 
                   {cycleDays?.length === 0 && (
