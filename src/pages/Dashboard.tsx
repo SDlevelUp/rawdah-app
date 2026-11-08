@@ -1566,7 +1566,7 @@ export default function Dashboard() {
 
                     </div>
                     </div>
-                    <div className="flex flex-col lg:col-span-7">
+                    <div className="n-stack lg:col-span-5">
                     <div className="n-card n-rise grid grid-cols-2 gap-5">
                       {[
                         { label: "Jours notés", value: String(daysTrackedThisMonth), hint: "ce mois-ci" },
@@ -1589,8 +1589,6 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
-                    </div>
-                    <div className="n-stack lg:col-span-5">
                   <section className="n-card" aria-labelledby="qada-heading">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
