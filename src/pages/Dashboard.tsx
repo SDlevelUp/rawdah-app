@@ -1419,7 +1419,7 @@ export default function Dashboard() {
 
 
                   <div className="grid gap-4 lg:grid-cols-12">
-                    <div className="lg:col-span-7">
+                    <div className="n-stack lg:col-span-7">
                     <div className="n-card min-w-0 p-3! sm:p-5!">
                       <CycleCalendar
                         month={calendarMonth}
@@ -1491,7 +1491,7 @@ export default function Dashboard() {
                         )}
                       </div>
                     </div>
-                    <div className="n-card n-rise mt-4 grid grid-cols-2 gap-5">
+                    <div className="n-card n-rise grid grid-cols-2 gap-5">
                       {[
                         { label: "Jours notés", value: String(daysTrackedThisMonth), hint: "ce mois-ci" },
                         { label: "Débuts notés", value: String(periodStarts.length), hint: "au total" },
@@ -1513,7 +1513,7 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
-                  <section className="n-card mt-4" aria-labelledby="qada-heading">
+                  <section className="n-card" aria-labelledby="qada-heading">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
                         <span className="n-label">Ramadan</span>
