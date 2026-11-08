@@ -443,7 +443,7 @@ export default function Landing() {
             </span>
             <h2 className="rw-h2">Ton cycle et ton qada, au même endroit.</h2>
             <p className="rw-text">
-              Note tes jours de règles, vois les prochaines dates estimées, compte tes jeûnes à
+              Note tes jours de règles et compte tes jeûnes à
               rattraper. Le mode ‘Udhr retire les prières de ton planning le temps des règles.
             </p>
           </div>

@@ -464,9 +464,7 @@ export function TodayView({
               <h2 className="n-display mt-3 text-[24px] leading-tight">
                 {cycle.currentPeriodDay !== null
                   ? `Jour ${cycle.currentPeriodDay} · prière et jeûne en pause`
-                  : cycle.expectedNextPeriod
-                    ? `Prochaines règles estimées vers le ${format(cycle.expectedNextPeriod, "d MMMM", { locale: fr })}`
-                    : "Suivi du cycle"}
+                  : "Suivi du cycle"}
               </h2>
               <p className="mt-1 text-[15px] text-(--n-muted)">
                 {cycle.currentPeriodDay !== null

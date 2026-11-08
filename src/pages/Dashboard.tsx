@@ -248,7 +248,6 @@ export default function Dashboard() {
   const [pendingNoteAction, setPendingNoteAction] = useState<string | null>(
     null,
   );
-  const [isSavingLateAlerts, setIsSavingLateAlerts] = useState(false);
   const [qadaRamadanTotal, setQadaRamadanTotal] = useState("0");
   const [qadaRamadanCompleted, setQadaRamadanCompleted] = useState("0");
   const [isSavingQadaRamadan, setIsSavingQadaRamadan] = useState(false);
@@ -256,7 +255,6 @@ export default function Dashboard() {
     readStored("nour-reminders", defaultReminders),
   );
   const firedToday = useRef<Record<string, string>>({});
-  const notifiedLateCycle = useRef<string | null>(null);
   const firstName = user?.name?.trim().split(" ")[0];
   const today = todayKey();
   const historyStart = startOfMonth(subMonths(new Date(), 18));
@@ -281,9 +279,6 @@ export default function Dashboard() {
   const quranEntries = useQuery(api.quranProgress.list, {});
   const saveCycleDay = useMutation(api.cycleTracking.saveDay);
   const setPeriodDays = useMutation(api.cycleTracking.setPeriodDays);
-  const setLateAlertsEnabled = useMutation(
-    api.cycleTracking.setLateAlertsEnabled,
-  );
   const setQadaRamadanProgress = useMutation(
     api.cycleTracking.setQadaRamadanProgress,
   );
@@ -441,14 +436,6 @@ export default function Dashboard() {
   const currentCycleDay = latestPeriodStart
     ? differenceInCalendarDays(new Date(), parseISO(latestPeriodStart)) + 1
     : null;
-  const expectedNextPeriod =
-    averageCycleLength !== null && latestPeriodStart
-      ? addDays(parseISO(latestPeriodStart), averageCycleLength)
-      : null;
-  const daysLate = expectedNextPeriod
-    ? differenceInCalendarDays(new Date(), expectedNextPeriod)
-    : null;
-  const isPeriodLate = daysLate !== null && daysLate > 2;
   // Jours de règles notés pendant le Ramadan (mois 9 du calendrier hégirien),
   // regroupés par année, pour proposer le nombre de jours de jeûne à rattraper.
   const ramadanPeriodDays = [...recordedPeriodDates]
@@ -739,28 +726,6 @@ export default function Dashboard() {
     );
   };
 
-  const updateLateAlerts = async (enabled: boolean) => {
-    setIsSavingLateAlerts(true);
-    try {
-      if (
-        enabled &&
-        "Notification" in window &&
-        Notification.permission === "default"
-      ) {
-        const permission = await Notification.requestPermission();
-        if (permission !== "granted") {
-          toast.message(
-            "Les alertes resteront visibles dans l’application, sans notification système.",
-          );
-        }
-      }
-      await setLateAlertsEnabled({ enabled });
-    } catch {
-      toast.error("Impossible d’enregistrer ta préférence de notification.");
-    } finally {
-      setIsSavingLateAlerts(false);
-    }
-  };
 
   const saveQadaRamadan = async () => {
     setIsSavingQadaRamadan(true);
@@ -811,29 +776,6 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    if (
-      !isPeriodLate ||
-      !cycleSettings?.lateAlertsEnabled ||
-      !expectedNextPeriod ||
-      !("Notification" in window) ||
-      Notification.permission !== "granted"
-    ) {
-      return;
-    }
-    const alertKey = `${user?._id ?? "user"}-${format(expectedNextPeriod, "yyyy-MM-dd")}`;
-    if (notifiedLateCycle.current === alertKey) return;
-    notifiedLateCycle.current = alertKey;
-    new Notification("Rappel de suivi", {
-        body: "Un rappel de suivi est disponible dans Rawdah.",
-      tag: `nour-cycle-late-${alertKey}`,
-    });
-  }, [
-    cycleSettings?.lateAlertsEnabled,
-    expectedNextPeriod,
-    isPeriodLate,
-    user?._id,
-  ]);
 
   const navigateToView = (view: DashboardView) => {
     setActiveView(view);
@@ -1180,7 +1122,7 @@ export default function Dashboard() {
                       }}
                       cycle={{
                         currentPeriodDay,
-                        expectedNextPeriod,
+                        expectedNextPeriod: null,
                         periodDates: recordedPeriodDates,
                       }}
                       notes={recentNotes.map((note) => ({
@@ -1475,16 +1417,6 @@ export default function Dashboard() {
                     />
                   </div>
 
-                  {isPeriodLate && expectedNextPeriod && (
-                    <div className="n-card n-card-tint" role="status">
-                      <p className="font-semibold">Ton cycle a peut-être un peu de retard</p>
-                      <p className="mt-1 text-[15px] leading-6 text-(--n-muted)">
-                        D’après les journées que tu as notées, la date estimée était le{" "}
-                        {format(expectedNextPeriod, "d MMMM", { locale: fr })}. Les cycles
-                        varient naturellement ; cette estimation n’est pas un avis médical.
-                      </p>
-                    </div>
-                  )}
 
                   <div className="grid gap-4 lg:grid-cols-12">
                     <div className="flex flex-col lg:col-span-7">
@@ -1562,19 +1494,6 @@ export default function Dashboard() {
 
                     </div>
                     <div className="n-stack lg:col-span-5">
-                    <article className="n-card n-card-dark n-rise">
-                      <span className="n-label">Prochaines règles estimées</span>
-                      <p className="n-display mt-4 text-[34px] leading-none">
-                        {expectedNextPeriod
-                          ? format(expectedNextPeriod, "d MMMM", { locale: fr })
-                          : "—"}
-                      </p>
-                      <p className="mt-3 text-[14px] text-(--n-on-dark-muted)">
-                        {expectedNextPeriod
-                          ? format(expectedNextPeriod, "EEEE yyyy", { locale: fr })
-                          : "Note au moins 3 débuts de cycle pour obtenir une estimation."}
-                      </p>
-                    </article>
                     <div className="n-card n-rise grid grid-cols-2 gap-5">
                       {[
                         { label: "Jours notés", value: String(daysTrackedThisMonth), hint: "ce mois-ci" },
@@ -1596,10 +1515,6 @@ export default function Dashboard() {
                           <p className="mt-1 text-[13px] text-(--n-muted)">{stat.hint}</p>
                         </div>
                       ))}
-                      <p className="col-span-full text-[13px] leading-5 text-(--n-muted)">
-                        Estimations fondées sur les cycles enregistrés ; elles peuvent varier et
-                        ne constituent pas un avis médical.
-                      </p>
                     </div>
                     </div>
                     <div className="flex flex-col lg:col-span-7">
@@ -1673,21 +1588,6 @@ export default function Dashboard() {
                         </p>
                       </div>
 
-                      <div className="mt-4 flex items-center justify-between gap-4 border-t border-(--n-line) pt-5">
-                        <div>
-                          <p className="text-[14px] font-semibold">Alerte si mes règles tardent</p>
-                          <p className="mt-1 text-[13px] leading-5 text-(--n-muted)">
-                            Estimation après trois cycles notés ; notification du navigateur
-                            lorsque l’application est ouverte.
-                          </p>
-                        </div>
-                        <Switch
-                          checked={cycleSettings?.lateAlertsEnabled ?? false}
-                          disabled={cycleSettings === undefined || isSavingLateAlerts}
-                          onCheckedChange={(enabled) => void updateLateAlerts(enabled)}
-                          aria-label="Activer les alertes de retard de règles"
-                        />
-                      </div>
                     </div>
                     </div>
                     <div className="n-stack lg:col-span-5">
