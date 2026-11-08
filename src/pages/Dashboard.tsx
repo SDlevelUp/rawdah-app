@@ -1493,7 +1493,7 @@ export default function Dashboard() {
                     </div>
 
                     </div>
-                    <div className="flex flex-col lg:col-span-7">
+                    <div className="n-stack lg:col-span-5">
                     <div id="cycle-day-editor" className="n-card min-w-0 flex-1">
                       <span className="n-label">
                         {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
@@ -1565,8 +1565,105 @@ export default function Dashboard() {
                       </div>
 
                     </div>
+                    <section aria-labelledby="cycle-notes-heading" className="n-card min-w-0">
+                      <h2 id="cycle-notes-heading" className="n-display text-[20px]">
+                        Notes du cycle
+                      </h2>
+                      {cycleDays === undefined ? (
+                        <p className="mt-4 text-[15px] text-(--n-muted)">Chargement des notes…</p>
+                      ) : cycleNotes.length === 0 ? (
+                        <p className="mt-3 text-[15px] text-(--n-muted)">
+                          Aucune note pour le moment. Sélectionne une date, écris une note et
+                          enregistre-la.
+                        </p>
+                      ) : (
+                        <ul className="mt-3 divide-y divide-(--n-line)">
+                          {cycleNotes.map((entry) => (
+                            <li key={entry._id} className="flex items-start gap-2 py-3">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const date = parseISO(entry.date);
+                                  setSelectedDate(date);
+                                  setCalendarMonth(startOfMonth(date));
+                                  requestAnimationFrame(() =>
+                                    document
+                                      .getElementById("cycle-day-editor")
+                                      ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+                                  );
+                                }}
+                                className="min-w-0 flex-1 text-left"
+                              >
+                                <time dateTime={entry.date} className="text-[13px] font-semibold text-(--n-sage)">
+                                  {format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}
+                                </time>
+                                <p className="mt-1 whitespace-pre-wrap text-[15px] leading-6">{entry.note}</p>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void deleteCycleNote(entry)}
+                                disabled={isSavingCycleDay}
+                                aria-label={`Supprimer la note du ${format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}`}
+                                className="n-link shrink-0 text-[13px] text-(--n-muted)! disabled:opacity-50"
+                              >
+                                Supprimer
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </section>
+
+                    <details className="n-card min-w-0">
+                      <summary className="n-display cursor-pointer text-[20px]">
+                        Symptômes notés <span className="text-[15px] font-normal text-(--n-muted)">(facultatif)</span>
+                      </summary>
+                      {cycleDays === undefined ? (
+                        <p className="mt-4 text-[15px] text-(--n-muted)">Chargement des symptômes…</p>
+                      ) : records.filter((entry) => entry.symptoms.length > 0).length === 0 ? (
+                        <p className="mt-3 text-[15px] text-(--n-muted)">
+                          Aucun symptôme noté. Sélectionne une date dans le calendrier et choisis
+                          les observations du jour.
+                        </p>
+                      ) : (
+                        <ul className="mt-3 divide-y divide-(--n-line)">
+                          {[...records]
+                            .filter((entry) => entry.symptoms.length > 0)
+                            .sort((first, second) => second.date.localeCompare(first.date))
+                            .map((entry) => (
+                              <li key={entry._id}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const date = parseISO(entry.date);
+                                    setSelectedDate(date);
+                                    setCalendarMonth(startOfMonth(date));
+                                    requestAnimationFrame(() =>
+                                      document
+                                        .getElementById("cycle-day-editor")
+                                        ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+                                    );
+                                  }}
+                                  className="w-full py-3 text-left"
+                                >
+                                  <time dateTime={entry.date} className="text-[13px] font-semibold text-(--n-sage)">
+                                    {format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}
+                                  </time>
+                                  <span className="mt-2 flex flex-wrap gap-1.5">
+                                    {entry.symptoms.map((symptom) => (
+                                      <span key={symptom} className="n-chip">
+                                        {cycleSymptoms.find((item) => item.key === symptom)?.label ?? symptom}
+                                      </span>
+                                    ))}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                        </ul>
+                      )}
+                    </details>
                     </div>
-                    <div className="n-stack lg:col-span-5">
+                    <div className="lg:col-span-7">
                     <div className="n-card n-rise grid grid-cols-2 gap-5">
                       {[
                         { label: "Jours notés", value: String(daysTrackedThisMonth), hint: "ce mois-ci" },
@@ -1688,103 +1785,6 @@ export default function Dashboard() {
                       personne de science.
                     </p>
                   </section>
-                    <section aria-labelledby="cycle-notes-heading" className="n-card min-w-0">
-                      <h2 id="cycle-notes-heading" className="n-display text-[20px]">
-                        Notes du cycle
-                      </h2>
-                      {cycleDays === undefined ? (
-                        <p className="mt-4 text-[15px] text-(--n-muted)">Chargement des notes…</p>
-                      ) : cycleNotes.length === 0 ? (
-                        <p className="mt-3 text-[15px] text-(--n-muted)">
-                          Aucune note pour le moment. Sélectionne une date, écris une note et
-                          enregistre-la.
-                        </p>
-                      ) : (
-                        <ul className="mt-3 divide-y divide-(--n-line)">
-                          {cycleNotes.map((entry) => (
-                            <li key={entry._id} className="flex items-start gap-2 py-3">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const date = parseISO(entry.date);
-                                  setSelectedDate(date);
-                                  setCalendarMonth(startOfMonth(date));
-                                  requestAnimationFrame(() =>
-                                    document
-                                      .getElementById("cycle-day-editor")
-                                      ?.scrollIntoView({ behavior: "smooth", block: "center" }),
-                                  );
-                                }}
-                                className="min-w-0 flex-1 text-left"
-                              >
-                                <time dateTime={entry.date} className="text-[13px] font-semibold text-(--n-sage)">
-                                  {format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}
-                                </time>
-                                <p className="mt-1 whitespace-pre-wrap text-[15px] leading-6">{entry.note}</p>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void deleteCycleNote(entry)}
-                                disabled={isSavingCycleDay}
-                                aria-label={`Supprimer la note du ${format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}`}
-                                className="n-link shrink-0 text-[13px] text-(--n-muted)! disabled:opacity-50"
-                              >
-                                Supprimer
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </section>
-
-                    <details className="n-card min-w-0">
-                      <summary className="n-display cursor-pointer text-[20px]">
-                        Symptômes notés <span className="text-[15px] font-normal text-(--n-muted)">(facultatif)</span>
-                      </summary>
-                      {cycleDays === undefined ? (
-                        <p className="mt-4 text-[15px] text-(--n-muted)">Chargement des symptômes…</p>
-                      ) : records.filter((entry) => entry.symptoms.length > 0).length === 0 ? (
-                        <p className="mt-3 text-[15px] text-(--n-muted)">
-                          Aucun symptôme noté. Sélectionne une date dans le calendrier et choisis
-                          les observations du jour.
-                        </p>
-                      ) : (
-                        <ul className="mt-3 divide-y divide-(--n-line)">
-                          {[...records]
-                            .filter((entry) => entry.symptoms.length > 0)
-                            .sort((first, second) => second.date.localeCompare(first.date))
-                            .map((entry) => (
-                              <li key={entry._id}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const date = parseISO(entry.date);
-                                    setSelectedDate(date);
-                                      setCalendarMonth(startOfMonth(date));
-                                    requestAnimationFrame(() =>
-                                      document
-                                        .getElementById("cycle-day-editor")
-                                        ?.scrollIntoView({ behavior: "smooth", block: "center" }),
-                                    );
-                                  }}
-                                  className="w-full py-3 text-left"
-                                >
-                                  <time dateTime={entry.date} className="text-[13px] font-semibold text-(--n-sage)">
-                                    {format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}
-                                  </time>
-                                  <span className="mt-2 flex flex-wrap gap-1.5">
-                                    {entry.symptoms.map((symptom) => (
-                                      <span key={symptom} className="n-chip">
-                                        {cycleSymptoms.find((item) => item.key === symptom)?.label ?? symptom}
-                                      </span>
-                                    ))}
-                                  </span>
-                                </button>
-                              </li>
-                            ))}
-                        </ul>
-                      )}
-                    </details>
                     </div>
                   </div>
 
