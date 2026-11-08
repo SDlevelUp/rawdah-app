@@ -1067,8 +1067,7 @@ export default function Dashboard() {
           <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6 xl:px-8">
             {/* Mobile : logo au centre, profil à droite ; les modules passent par la barre du bas.
                 Sur ordinateur, logo et menu sont dans la barre latérale. */}
-            <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center lg:hidden">
-              <span aria-hidden="true" />
+            <div className="flex w-full items-center justify-between lg:hidden">
               <button
                 type="button"
                 onClick={() => navigateToView("overview")}
@@ -1077,7 +1076,7 @@ export default function Dashboard() {
               >
                 <span className="n-display text-[19px]">Rawdah</span>
               </button>
-              <div className="justify-self-end">
+              <div>
                 <TopActions
                   firstName={firstName || ""}
                   email={user?.email}
@@ -1106,7 +1105,7 @@ export default function Dashboard() {
                   day: "numeric",
                   month: "long",
                   year: "numeric",
-                }).format(clock)}
+                }).format(clock).replace(/\s*(ap|av)\.\s*J\.\s*-?\s*C\.?/gi, "")}
               </span>
             </p>
             {prayer.times ? (

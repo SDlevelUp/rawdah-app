@@ -197,7 +197,7 @@ export function TodayView({
     day: "numeric",
     month: "long",
     year: "numeric",
-  }).format(date);
+  }).format(date).replace(/\s*(ap|av)\.\s*J\.\s*-?\s*C\.?/gi, "");
 
   const rappel = rappelDuJour(date);
   const showsRappel = modules.rappel && rappel !== null;
