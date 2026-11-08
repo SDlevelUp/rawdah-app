@@ -1613,8 +1613,8 @@ export default function Dashboard() {
                     </p>
                   </section>
                     </div>
-                    <div className="n-stack lg:col-span-5">
-                    <div id="cycle-day-editor" className="n-card min-w-0 flex-1">
+                    <div className="flex flex-col gap-3 lg:col-span-5">
+                    <div id="cycle-day-editor" className="n-card min-w-0">
                       <span className="n-label">
                         {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
                       </span>
