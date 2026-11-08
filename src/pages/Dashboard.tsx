@@ -1494,35 +1494,11 @@ export default function Dashboard() {
 
                     </div>
                     <div className="n-stack lg:col-span-5">
-                    <div className="n-card n-rise grid grid-cols-2 gap-5">
-                      {[
-                        { label: "Jours notés", value: String(daysTrackedThisMonth), hint: "ce mois-ci" },
-                        { label: "Débuts notés", value: String(periodStarts.length), hint: "au total" },
-                        {
-                          label: "Durée des règles",
-                          value: averagePeriodLength ? String(averagePeriodLength) : "—",
-                          hint: averagePeriodLength ? `jour${averagePeriodLength === 1 ? "" : "s"} en moyenne` : "à calculer",
-                        },
-                        {
-                          label: "Durée du cycle",
-                          value: averageCycleLength ? String(averageCycleLength) : "—",
-                          hint: averageCycleLength ? "jours en moyenne" : "à calculer",
-                        },
-                      ].map((stat) => (
-                        <div key={stat.label}>
-                          <p className="text-[13px] font-semibold text-(--n-muted)">{stat.label}</p>
-                          <p className="n-display mt-2 text-[30px] leading-none">{stat.value}</p>
-                          <p className="mt-1 text-[13px] text-(--n-muted)">{stat.hint}</p>
-                        </div>
-                      ))}
-                    </div>
-                    </div>
-                    <div className="flex flex-col lg:col-span-7">
                     <div id="cycle-day-editor" className="n-card min-w-0 flex-1">
                       <span className="n-label">
                         {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
                       </span>
-                      <h2 className="n-display mt-3 text-[22px]">Ce jour-là</h2>
+                      <h2 className="n-display mt-3 text-[22px] font-bold">Ce jour-là</h2>
                       <p className="mt-1 text-[15px] text-(--n-muted)">
                         Touche un jour du calendrier pour y noter tes observations ou une note.
                       </p>
@@ -1588,6 +1564,30 @@ export default function Dashboard() {
                         </p>
                       </div>
 
+                    </div>
+                    </div>
+                    <div className="flex flex-col lg:col-span-7">
+                    <div className="n-card n-rise grid grid-cols-2 gap-5">
+                      {[
+                        { label: "Jours notés", value: String(daysTrackedThisMonth), hint: "ce mois-ci" },
+                        { label: "Débuts notés", value: String(periodStarts.length), hint: "au total" },
+                        {
+                          label: "Durée des règles",
+                          value: averagePeriodLength ? String(averagePeriodLength) : "—",
+                          hint: averagePeriodLength ? `jour${averagePeriodLength === 1 ? "" : "s"} en moyenne` : "à calculer",
+                        },
+                        {
+                          label: "Durée du cycle",
+                          value: averageCycleLength ? String(averageCycleLength) : "—",
+                          hint: averageCycleLength ? "jours en moyenne" : "à calculer",
+                        },
+                      ].map((stat) => (
+                        <div key={stat.label}>
+                          <p className="text-[13px] font-semibold text-(--n-muted)">{stat.label}</p>
+                          <p className="n-display mt-2 text-[30px] leading-none">{stat.value}</p>
+                          <p className="mt-1 text-[13px] text-(--n-muted)">{stat.hint}</p>
+                        </div>
+                      ))}
                     </div>
                     </div>
                     <div className="n-stack lg:col-span-5">
