@@ -1419,8 +1419,8 @@ export default function Dashboard() {
 
 
                   <div className="grid gap-4 lg:grid-cols-12">
-                    <div className="flex flex-col lg:col-span-7">
-                    <div className="n-card min-w-0 flex-1 p-3! sm:p-5!">
+                    <div className="lg:col-span-7">
+                    <div className="n-card min-w-0 p-3! sm:p-5!">
                       <CycleCalendar
                         month={calendarMonth}
                         onMonthChange={setCalendarMonth}
