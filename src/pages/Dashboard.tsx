@@ -1513,6 +1513,105 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
+                  <section className="n-card mt-4" aria-labelledby="qada-heading">
+                    <div className="flex flex-wrap items-end justify-between gap-4">
+                      <div>
+                        <span className="n-label">Ramadan</span>
+                        <h2 id="qada-heading" className="n-display mt-3 text-[22px]">
+                          Jours à rattraper (qada)
+                        </h2>
+                      </div>
+                      <p className="text-right">
+                        <span className="n-display block text-[34px] leading-none">
+                          {Math.max(0, Number(qadaRamadanTotal) - Number(qadaRamadanCompleted))}
+                        </span>
+                        <span className="text-[13px] text-(--n-muted)">jours restants</span>
+                      </p>
+                    </div>
+                    <div className="n-steps mt-5" aria-hidden="true">
+                      <span
+                        data-state="done"
+                        style={{
+                          flex: Math.min(Number(qadaRamadanCompleted) || 0, Number(qadaRamadanTotal) || 0),
+                        }}
+                      />
+                      <span
+                        style={{
+                          flex: Math.max(0, (Number(qadaRamadanTotal) || 0) - (Number(qadaRamadanCompleted) || 0)),
+                        }}
+                      />
+                    </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                      <label className="grid gap-1 text-[13px] font-semibold">
+                        Jours à rattraper
+                        <input
+                          type="number"
+                          min="0"
+                          max="10000"
+                          step="1"
+                          value={qadaRamadanTotal}
+                          onChange={(event) => setQadaRamadanTotal(event.target.value)}
+                          className="n-input"
+                        />
+                      </label>
+                      <label className="grid gap-1 text-[13px] font-semibold">
+                        Jours effectués
+                        <input
+                          type="number"
+                          min="0"
+                          max={qadaRamadanTotal || 0}
+                          step="1"
+                          value={qadaRamadanCompleted}
+                          onChange={(event) => setQadaRamadanCompleted(event.target.value)}
+                          className="n-input"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="n-btn n-btn-sage disabled:opacity-40"
+                        disabled={
+                          cycleSettings === undefined ||
+                          isSavingQadaRamadan ||
+                          !Number.isInteger(Number(qadaRamadanTotal)) ||
+                          !Number.isInteger(Number(qadaRamadanCompleted)) ||
+                          Number(qadaRamadanCompleted) > Number(qadaRamadanTotal)
+                        }
+                        onClick={() => void saveQadaRamadan()}
+                      >
+                        {isSavingQadaRamadan ? "Enregistrement…" : "Enregistrer"}
+                      </button>
+                    </div>
+                    {suggestedQadaTotal > 0 && (
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-(--n-mauve-tint) px-4 py-3">
+                        <p className="text-[13px] leading-5">
+                          D'après ton calendrier :{" "}
+                          {ramadanYears
+                            .map(
+                              (year) =>
+                                `${ramadanPeriodDays[year]} jour${ramadanPeriodDays[year] > 1 ? "s" : ""} de règles pendant le Ramadan ${year}`,
+                            )
+                            .join(", ")}
+                          .
+                          {(cycleSettings?.qadaRamadanTotal ?? 0) === 0 &&
+                            " Le compteur est pré-rempli, il reste à l'enregistrer."}
+                        </p>
+                        {Number(qadaRamadanTotal) !== suggestedQadaTotal && (
+                          <button
+                            type="button"
+                            className="n-btn n-btn-ghost px-4! py-2! text-sm!"
+                            onClick={() => setQadaRamadanTotal(String(suggestedQadaTotal))}
+                          >
+                            Utiliser {suggestedQadaTotal} jour{suggestedQadaTotal > 1 ? "s" : ""}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <p className="mt-3 text-[13px] text-(--n-muted)">
+                      Dates du Ramadan selon le calendrier Umm al-Qura, à ajuster si ton
+                      Ramadan a commencé un autre jour. Un simple compteur personnel. Pour les règles du rattrapage, réfère-toi à une
+                      personne de science.
+                    </p>
+                  </section>
                     </div>
                     <div className="n-stack lg:col-span-5">
                     <div id="cycle-day-editor" className="n-card min-w-0 flex-1">
@@ -1684,105 +1783,6 @@ export default function Dashboard() {
                       )}
                     </details>
                     </div>
-                  <section className="n-card lg:col-span-7" aria-labelledby="qada-heading">
-                    <div className="flex flex-wrap items-end justify-between gap-4">
-                      <div>
-                        <span className="n-label">Ramadan</span>
-                        <h2 id="qada-heading" className="n-display mt-3 text-[22px]">
-                          Jours à rattraper (qada)
-                        </h2>
-                      </div>
-                      <p className="text-right">
-                        <span className="n-display block text-[34px] leading-none">
-                          {Math.max(0, Number(qadaRamadanTotal) - Number(qadaRamadanCompleted))}
-                        </span>
-                        <span className="text-[13px] text-(--n-muted)">jours restants</span>
-                      </p>
-                    </div>
-                    <div className="n-steps mt-5" aria-hidden="true">
-                      <span
-                        data-state="done"
-                        style={{
-                          flex: Math.min(Number(qadaRamadanCompleted) || 0, Number(qadaRamadanTotal) || 0),
-                        }}
-                      />
-                      <span
-                        style={{
-                          flex: Math.max(0, (Number(qadaRamadanTotal) || 0) - (Number(qadaRamadanCompleted) || 0)),
-                        }}
-                      />
-                    </div>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                      <label className="grid gap-1 text-[13px] font-semibold">
-                        Jours à rattraper
-                        <input
-                          type="number"
-                          min="0"
-                          max="10000"
-                          step="1"
-                          value={qadaRamadanTotal}
-                          onChange={(event) => setQadaRamadanTotal(event.target.value)}
-                          className="n-input"
-                        />
-                      </label>
-                      <label className="grid gap-1 text-[13px] font-semibold">
-                        Jours effectués
-                        <input
-                          type="number"
-                          min="0"
-                          max={qadaRamadanTotal || 0}
-                          step="1"
-                          value={qadaRamadanCompleted}
-                          onChange={(event) => setQadaRamadanCompleted(event.target.value)}
-                          className="n-input"
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        className="n-btn n-btn-sage disabled:opacity-40"
-                        disabled={
-                          cycleSettings === undefined ||
-                          isSavingQadaRamadan ||
-                          !Number.isInteger(Number(qadaRamadanTotal)) ||
-                          !Number.isInteger(Number(qadaRamadanCompleted)) ||
-                          Number(qadaRamadanCompleted) > Number(qadaRamadanTotal)
-                        }
-                        onClick={() => void saveQadaRamadan()}
-                      >
-                        {isSavingQadaRamadan ? "Enregistrement…" : "Enregistrer"}
-                      </button>
-                    </div>
-                    {suggestedQadaTotal > 0 && (
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-(--n-mauve-tint) px-4 py-3">
-                        <p className="text-[13px] leading-5">
-                          D’après ton calendrier :{" "}
-                          {ramadanYears
-                            .map(
-                              (year) =>
-                                `${ramadanPeriodDays[year]} jour${ramadanPeriodDays[year] > 1 ? "s" : ""} de règles pendant le Ramadan ${year}`,
-                            )
-                            .join(", ")}
-                          .
-                          {(cycleSettings?.qadaRamadanTotal ?? 0) === 0 &&
-                            " Le compteur est pré-rempli, il reste à l’enregistrer."}
-                        </p>
-                        {Number(qadaRamadanTotal) !== suggestedQadaTotal && (
-                          <button
-                            type="button"
-                            className="n-btn n-btn-ghost px-4! py-2! text-sm!"
-                            onClick={() => setQadaRamadanTotal(String(suggestedQadaTotal))}
-                          >
-                            Utiliser {suggestedQadaTotal} jour{suggestedQadaTotal > 1 ? "s" : ""}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    <p className="mt-3 text-[13px] text-(--n-muted)">
-                      Dates du Ramadan selon le calendrier Umm al-Qura, à ajuster si ton
-                      Ramadan a commencé un autre jour. Un simple compteur personnel. Pour les règles du rattrapage, réfère-toi à une
-                      personne de science.
-                    </p>
-                  </section>
                   </div>
 
                   {cycleDays?.length === 0 && (
