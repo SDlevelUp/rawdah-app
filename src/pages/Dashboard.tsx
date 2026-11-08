@@ -1418,8 +1418,8 @@ export default function Dashboard() {
                   </div>
 
 
-                  <div className="grid gap-4 lg:grid-cols-12">
-                    <div className="n-stack lg:col-span-7">
+                  <div className="grid gap-3 lg:grid-cols-12">
+                    <div className="flex flex-col gap-3 lg:col-span-7">
                     <div className="n-card min-w-0 p-3! sm:p-5!">
                       <CycleCalendar
                         month={calendarMonth}
