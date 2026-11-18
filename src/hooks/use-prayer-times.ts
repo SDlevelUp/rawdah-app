@@ -146,6 +146,13 @@ export function usePrayerTimes() {
     }
 
     const controller = new AbortController();
+    // Sans réponse d'AlAdhan au bout de 12 s, on abandonne pour ne pas laisser
+    // « Chargement des horaires… » tourner indéfiniment.
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 12_000);
     const query = new URLSearchParams({
       latitude: String(coordinates.latitude),
       longitude: String(coordinates.longitude),
@@ -186,18 +193,22 @@ export function usePrayerTimes() {
         });
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted && !timedOut) return;
         setState({
           times: null,
           isLoading: false,
-          error:
-            error instanceof Error
+          error: timedOut
+            ? "Le service d’horaires ne répond pas. Réessaie dans un instant."
+            : error instanceof Error
               ? error.message
               : "Impossible de récupérer les horaires de prière.",
         });
       });
 
-    return () => controller.abort();
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [
     localDate,
     preferences.coordinates,
