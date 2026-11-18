@@ -1,0 +1,10 @@
+name = "rawdah-convex-proxy"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# URL publique du déploiement Convex de prod (la même que dans le bundle de l'app).
+CONVEX_CLOUD_URL = "https://useful-anaconda-844.eu-west-1.convex.cloud"
+
+# Une fois ton domaine sur Cloudflare, décommente et adapte :
+# routes = [{ pattern = "api.ton-domaine.fr", custom_domain = true }]

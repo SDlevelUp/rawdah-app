@@ -60,7 +60,14 @@ class RootErrorBoundary extends React.Component<
   }
 }
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+// Si VITE_CONVEX_PROXY_URL est défini (proxy Cloudflare, voir
+// cloudflare/convex-proxy/README.md), l'app passe par lui plutôt que par
+// *.convex.cloud, que certains antivirus bloquent.
+const convexProxyUrl = import.meta.env.VITE_CONVEX_PROXY_URL as string | undefined;
+const convex = new ConvexReactClient(
+  convexProxyUrl || (import.meta.env.VITE_CONVEX_URL as string),
+  { skipConvexDeploymentUrlCheck: Boolean(convexProxyUrl) },
+);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

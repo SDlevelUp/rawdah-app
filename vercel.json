@@ -26,10 +26,6 @@
   ],
   "rewrites": [
     {
-      "source": "/_convex/:path*",
-      "destination": "https://useful-anaconda-844.eu-west-1.convex.cloud/:path*"
-    },
-    {
       "source": "/_convex-site/:path*",
       "destination": "https://useful-anaconda-844.eu-west-1.convex.site/:path*"
     },
