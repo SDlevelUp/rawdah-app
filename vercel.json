@@ -3,16 +3,39 @@
   "redirects": [
     {
       "source": "/",
-      "has": [{ "type": "host", "value": "muslim-dhikr-companion-main.vercel.app" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "muslim-dhikr-companion-main.vercel.app"
+        }
+      ],
       "destination": "https://rawdahapp.vercel.app/",
       "permanent": true
     },
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": "muslim-dhikr-companion-main.vercel.app" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "muslim-dhikr-companion-main.vercel.app"
+        }
+      ],
       "destination": "https://rawdahapp.vercel.app/:path*",
       "permanent": true
     }
   ],
-  "rewrites": [{ "source": "/(.*)", "destination": "/app.html" }]
+  "rewrites": [
+    {
+      "source": "/_convex/:path*",
+      "destination": "https://useful-anaconda-844.eu-west-1.convex.cloud/:path*"
+    },
+    {
+      "source": "/_convex-site/:path*",
+      "destination": "https://useful-anaconda-844.eu-west-1.convex.site/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/app.html"
+    }
+  ]
 }
