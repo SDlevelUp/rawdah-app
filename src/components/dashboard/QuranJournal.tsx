@@ -35,6 +35,9 @@ export function QuranJournal({
   const [pagesOrVerses, setPagesOrVerses] = useState("");
   const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  // Carte « Noter une lecture » ouverte : le lecteur arrête de faire défiler
+  // la page, puis revient au verset en cours quand la carte se referme.
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isSavingAudioProgress, setIsSavingAudioProgress] = useState(false);
   const [pendingDelete, setPendingDelete] =
     useState<Id<"quranReadingLogs"> | null>(null);
@@ -53,6 +56,7 @@ export function QuranJournal({
       setPassage("");
       setPagesOrVerses("");
       setNotes("");
+      setIsComposerOpen(false);
       toast.success("Lecture ajoutée au journal.");
     } catch (error) {
       toast.error(
@@ -130,9 +134,10 @@ export function QuranJournal({
         resumePosition={resumePosition}
         isActive={isActive}
         onOpen={onOpen}
+        followAyah={!isComposerOpen}
       />
 
-      <ComposerCard title="Noter une lecture" hint="Pour garder la trace d’un passage lu en dehors du lecteur." icon={PenLine} hidden={!isActive}>
+      <ComposerCard title="Noter une lecture" hint="Pour garder la trace d’un passage lu en dehors du lecteur." icon={PenLine} hidden={!isActive} open={isComposerOpen} onOpenChange={setIsComposerOpen}>
       <form
         onSubmit={(event) => void saveEntry(event)}
         className="mt-5 space-y-4"

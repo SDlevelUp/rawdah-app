@@ -143,6 +143,7 @@ export function QuranAudioReader({
   resumePosition = null,
   isActive = true,
   onOpen,
+  followAyah = true,
 }: {
   isSavingProgress: boolean;
   onSaveProgress: (progress: QuranPlaybackProgress) => Promise<boolean>;
@@ -151,6 +152,9 @@ export function QuranAudioReader({
   // l'écoute continue, et seule la mini-fenêtre est affichée.
   isActive?: boolean;
   onOpen?: () => void;
+  // Faux pendant la saisie d'une note : l'audio continue mais la page ne
+  // défile plus. Au retour à vrai, la page revient sur le verset en cours.
+  followAyah?: boolean;
 }) {
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [reciters, setReciters] = useState<Reciter[]>([]);
@@ -432,11 +436,11 @@ export function QuranAudioReader({
     : surahs;
 
   useEffect(() => {
-    if (!isPlaying || !isActive) return;
+    if (!isPlaying || !isActive || !followAyah) return;
     document
       .getElementById(`quran-ayah-${currentAyah}`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [currentAyah, isActive, isPlaying]);
+  }, [currentAyah, isActive, isPlaying, followAyah]);
   const handleEnded = () => {
     if (repeatCount === 0 || repeatNumber < repeatCount) {
       setRepeatNumber((count) => count + 1);

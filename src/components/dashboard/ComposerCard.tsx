@@ -9,6 +9,8 @@ export function ComposerCard({
   defaultOpen = false,
   hidden,
   className = "",
+  open,
+  onOpenChange,
   children,
 }: {
   title: string;
@@ -17,9 +19,18 @@ export function ComposerCard({
   defaultOpen?: boolean;
   hidden?: boolean;
   className?: string;
+  // Facultatif : pilotage de l'ouverture par le parent.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [innerOpen, setInnerOpen] = useState(defaultOpen);
+  const isOpen = open ?? innerOpen;
+  const setIsOpen = (update: (open: boolean) => boolean) => {
+    const next = update(isOpen);
+    if (open === undefined) setInnerOpen(next);
+    onOpenChange?.(next);
+  };
   const panelId = useId();
   return (
     <section className={`n-card n-composer ${className}`} data-open={isOpen} hidden={hidden}>
