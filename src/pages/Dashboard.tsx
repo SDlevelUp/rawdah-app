@@ -2538,8 +2538,8 @@ function PrayerReminderSettings({
                   onClick={() => handleMinutesChange(m)}
                   className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
                     minutesBefore === m
-                      ? "bg-(--n-accent) text-white"
-                      : "bg-(--n-surface) text-(--n-text) hover:bg-(--n-surface-hover)"
+                      ? "bg-(--n-sage-dark) text-(--n-on-dark)"
+                      : "bg-(--n-sage-tint) text-(--n-ink) hover:bg-(--n-line)"
                   }`}
                 >
                   {m === 0 ? "À l'heure" : `${m} min avant`}
