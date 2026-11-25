@@ -35,13 +35,21 @@ export function usePushNotifications() {
       })
       .then((sub) => {
         if (sub) {
+          const json = sub.toJSON();
+          if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
+            void saveSubscription({
+              endpoint: json.endpoint,
+              p256dh: json.keys.p256dh,
+              auth: json.keys.auth,
+            });
+          }
           setState("granted");
         } else {
           setState(Notification.permission === "denied" ? "denied" : "prompt");
         }
       })
       .catch(() => setState("unsupported"));
-  }, []);
+  }, [saveSubscription]);
 
   const subscribe = useCallback(async () => {
     const reg = registrationRef.current;
