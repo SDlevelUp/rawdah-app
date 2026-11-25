@@ -597,20 +597,31 @@ export default function Dashboard() {
     key: "morning" | "evening",
     enabled: boolean,
   ) => {
-    if (enabled && push.state === "unsupported") {
-      toast.message(
-        "Les notifications ne sont pas prises en charge par ce navigateur.",
-      );
-      return;
-    }
-    if (enabled && (push.state === "prompt" || push.state === "denied")) {
-      if (push.state === "prompt") {
-        await push.subscribe();
-      } else {
+    if (enabled) {
+      if (push.state === "unsupported") {
         toast.message(
-          "Autorise les notifications dans ton navigateur pour activer ce rappel.",
+          "Les notifications ne sont pas prises en charge par ce navigateur. Installe Rawdah sur ton écran d'accueil.",
         );
         return;
+      }
+      if (push.state === "loading") {
+        toast.message("Chargement en cours, réessaie dans quelques secondes.");
+        return;
+      }
+      if (push.state === "denied") {
+        toast.message(
+          "Autorise les notifications dans les réglages de ton navigateur pour activer ce rappel.",
+        );
+        return;
+      }
+      if (push.state === "prompt") {
+        const ok = await push.subscribe();
+        if (!ok) {
+          toast.message(
+            "Tu dois autoriser les notifications pour recevoir les rappels.",
+          );
+          return;
+        }
       }
     }
     const updated = {
@@ -620,6 +631,7 @@ export default function Dashboard() {
     setAdhkarLocal(updated);
     try {
       await saveAdhkarPrefs(updated);
+      if (enabled) toast.success("Rappel activé !");
     } catch {
       toast.error("Impossible d'enregistrer le rappel.");
     }
