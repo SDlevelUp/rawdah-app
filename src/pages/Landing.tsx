@@ -507,8 +507,6 @@ export default function Landing() {
         <footer className="rw-final rw-sep">
 <div className="rw-wrap rw-wordmark-stage" aria-hidden="true">
             <span className="rw-wordmark">Rawdah</span>
-            <span className="rw-wordmark-pill rw-wordmark-pill-left">Chaque invocation avec sa source</span>
-            <span className="rw-wordmark-pill rw-wordmark-pill-right">Zéro publicité</span>
           </div>
           <div className="rw-wrap rw-footer-bar">
             <span>© Rawdah · Selon le Coran et la Sunna authentique</span>
