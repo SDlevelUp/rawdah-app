@@ -104,6 +104,59 @@ export const removeSubscription = mutation({
   },
 });
 
+// ── Préférences adhkar (matin / soir) ──
+
+export const getAdhkarPreferences = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return null;
+    return await ctx.db
+      .query("adhkarPreferences")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+  },
+});
+
+export const saveAdhkarPreferences = mutation({
+  args: {
+    morningEnabled: v.boolean(),
+    morningTime: v.string(),
+    eveningEnabled: v.boolean(),
+    eveningTime: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Connecte-toi pour enregistrer.");
+
+    const timeRe = /^\d{2}:\d{2}$/;
+    if (!timeRe.test(args.morningTime) || !timeRe.test(args.eveningTime))
+      throw new Error("Format d'heure invalide (HH:MM attendu).");
+
+    const existing = await ctx.db
+      .query("adhkarPreferences")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    const data = { userId, ...args };
+    if (existing) {
+      await ctx.db.replace(existing._id, data);
+    } else {
+      await ctx.db.insert("adhkarPreferences", data);
+    }
+  },
+});
+
+export const getAdhkarPrefsInternal = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    return await ctx.db
+      .query("adhkarPreferences")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+  },
+});
+
 // ── Queries internes (appelées par les actions Node.js) ──
 
 export const getUserPrefsInternal = internalQuery({
@@ -142,11 +195,22 @@ export const deleteSubscription = internalMutation({
 export const scheduleDailyReminders = internalMutation({
   args: {},
   handler: async (ctx) => {
+    // Rappels de prière
     const allPrefs = await ctx.db.query("prayerPreferences").collect();
     const enabledPrefs = allPrefs.filter((p) => p.reminderEnabled);
 
     for (const prefs of enabledPrefs) {
       await ctx.scheduler.runAfter(0, internal.prayerRemindersNode.computeAndSendForUser, {
+        userId: prefs.userId,
+      });
+    }
+
+    // Rappels d'adhkar
+    const allAdhkar = await ctx.db.query("adhkarPreferences").collect();
+    const enabledAdhkar = allAdhkar.filter((a) => a.morningEnabled || a.eveningEnabled);
+
+    for (const prefs of enabledAdhkar) {
+      await ctx.scheduler.runAfter(0, internal.prayerRemindersNode.scheduleAdhkarForUser, {
         userId: prefs.userId,
       });
     }

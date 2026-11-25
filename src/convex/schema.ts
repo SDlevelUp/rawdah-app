@@ -144,6 +144,14 @@ const schema = defineSchema(
       }),
     }).index("by_user", ["userId"]),
 
+    adhkarPreferences: defineTable({
+      userId: v.id("users"),
+      morningEnabled: v.boolean(),
+      morningTime: v.string(),
+      eveningEnabled: v.boolean(),
+      eveningTime: v.string(),
+    }).index("by_user", ["userId"]),
+
     pushSubscriptions: defineTable({
       userId: v.id("users"),
       endpoint: v.string(),

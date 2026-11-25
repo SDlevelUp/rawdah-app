@@ -101,6 +101,105 @@ export const computeAndSendForUser = internalAction({
   },
 });
 
+export const scheduleAdhkarForUser = internalAction({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const prefs = await ctx.runQuery(internal.prayerReminders.getAdhkarPrefsInternal, { userId });
+    if (!prefs) return;
+
+    const subs = await ctx.runQuery(internal.prayerReminders.getUserSubscriptions, { userId });
+    if (subs.length === 0) return;
+
+    const now = new Date();
+
+    const sessions: { key: string; enabled: boolean; time: string; title: string; body: string }[] = [
+      {
+        key: "adhkar-morning",
+        enabled: prefs.morningEnabled,
+        time: prefs.morningTime,
+        title: "Adhkar du matin",
+        body: "C'est l'heure de tes invocations du matin.",
+      },
+      {
+        key: "adhkar-evening",
+        enabled: prefs.eveningEnabled,
+        time: prefs.eveningTime,
+        title: "Adhkar du soir",
+        body: "C'est l'heure de tes invocations du soir.",
+      },
+    ];
+
+    for (const session of sessions) {
+      if (!session.enabled) continue;
+
+      const [hours, minutes] = session.time.split(":").map(Number);
+      const target = new Date(now);
+      target.setHours(hours, minutes, 0, 0);
+      const delay = target.getTime() - now.getTime();
+
+      if (delay > 0) {
+        await ctx.scheduler.runAfter(delay, internal.prayerRemindersNode.sendAdhkarPush, {
+          userId,
+          sessionKey: session.key,
+          title: session.title,
+          body: session.body,
+        });
+      }
+    }
+  },
+});
+
+export const sendAdhkarPush = internalAction({
+  args: {
+    userId: v.id("users"),
+    sessionKey: v.string(),
+    title: v.string(),
+    body: v.string(),
+  },
+  handler: async (ctx, { userId, sessionKey, title, body }) => {
+    const subs = await ctx.runQuery(internal.prayerReminders.getUserSubscriptions, { userId });
+    if (subs.length === 0) return;
+
+    const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+    const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+    if (!vapidPublicKey || !vapidPrivateKey) {
+      console.error("VAPID keys manquantes");
+      return;
+    }
+
+    const webpush = await import("web-push");
+    webpush.setVapidDetails("mailto:contact.rawdah@sdlevelup.fr", vapidPublicKey, vapidPrivateKey);
+
+    const payload = JSON.stringify({
+      title,
+      body,
+      icon: "/logo.svg",
+      badge: "/logo.svg",
+      tag: sessionKey,
+      data: { adhkar: true },
+    });
+
+    for (const sub of subs) {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
+          },
+          payload,
+        );
+      } catch (err: unknown) {
+        const statusCode = (err as { statusCode?: number }).statusCode;
+        if (statusCode === 404 || statusCode === 410) {
+          await ctx.runMutation(internal.prayerReminders.deleteSubscription, {
+            endpoint: sub.endpoint,
+          });
+        }
+      }
+    }
+  },
+});
+
 export const sendPushToUser = internalAction({
   args: {
     userId: v.id("users"),

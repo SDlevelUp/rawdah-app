@@ -41,10 +41,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
-type ReminderPreferences = {
-  morning: boolean;
-  evening: boolean;
+type AdhkarReminderLocal = {
+  morningEnabled: boolean;
   morningTime: string;
+  eveningEnabled: boolean;
   eveningTime: string;
 };
 
@@ -133,10 +133,10 @@ const stickyNoteColors: {
   },
 ];
 
-const defaultReminders: ReminderPreferences = {
-  morning: false,
-  evening: false,
+const defaultAdhkarReminders: AdhkarReminderLocal = {
+  morningEnabled: false,
   morningTime: "06:30",
+  eveningEnabled: false,
   eveningTime: "19:30",
 };
 const cycleSymptoms: { key: CycleSymptom; label: string }[] = [
@@ -255,10 +255,10 @@ export default function Dashboard() {
   const [qadaRamadanTotal, setQadaRamadanTotal] = useState("0");
   const [qadaRamadanCompleted, setQadaRamadanCompleted] = useState("0");
   const [isSavingQadaRamadan, setIsSavingQadaRamadan] = useState(false);
-  const [reminders, setReminders] = useState<ReminderPreferences>(() =>
-    readStored("nour-reminders", defaultReminders),
-  );
-  const firedToday = useRef<Record<string, string>>({});
+  const adhkarPrefs = useQuery(api.prayerReminders.getAdhkarPreferences);
+  const saveAdhkarPrefs = useMutation(api.prayerReminders.saveAdhkarPreferences);
+  const [adhkarLocal, setAdhkarLocal] = useState<AdhkarReminderLocal>(defaultAdhkarReminders);
+  const adhkarSynced = useRef(false);
   const firstName = user?.name?.trim().split(" ")[0];
   const today = todayKey();
   const historyStart = startOfMonth(subMonths(new Date(), 18));
@@ -549,8 +549,16 @@ export default function Dashboard() {
   ]);
 
   useEffect(() => {
-    localStorage.setItem("nour-reminders", JSON.stringify(reminders));
-  }, [reminders]);
+    if (adhkarPrefs && !adhkarSynced.current) {
+      setAdhkarLocal({
+        morningEnabled: adhkarPrefs.morningEnabled,
+        morningTime: adhkarPrefs.morningTime,
+        eveningEnabled: adhkarPrefs.eveningEnabled,
+        eveningTime: adhkarPrefs.eveningTime,
+      });
+      adhkarSynced.current = true;
+    }
+  }, [adhkarPrefs]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -579,70 +587,60 @@ export default function Dashboard() {
     suggestedQadaTotal,
   ]);
 
-  useEffect(() => {
-    if (!("Notification" in window) || Notification.permission !== "granted")
-      return;
-    const checkReminders = () => {
-      const now = new Date();
-      const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      const date = todayKey();
-      const moments = [
-        {
-          key: "morning",
-          enabled: reminders.morning,
-          at: reminders.morningTime,
-          title: "Adhkar du matin",
-        },
-        {
-          key: "evening",
-          enabled: reminders.evening,
-          at: reminders.eveningTime,
-          title: "Adhkar du soir",
-        },
-      ];
-      moments.forEach(({ key, enabled, at, title }) => {
-        if (enabled && time === at && firedToday.current[key] !== date) {
-          firedToday.current[key] = date;
-          new Notification(title, {
-            body: "Ouvre Rawdah pour réciter les adhkar.",
-            tag: `nour-${key}-${date}`,
-          });
-        }
-      });
-    };
-    checkReminders();
-    const timer = window.setInterval(checkReminders, 15_000);
-    return () => window.clearInterval(timer);
-  }, [reminders]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
   };
 
-  const updateReminder = async (
+  const updateAdhkarReminder = async (
     key: "morning" | "evening",
     enabled: boolean,
   ) => {
-    if (enabled && !("Notification" in window)) {
+    if (enabled && push.state === "unsupported") {
       toast.message(
         "Les notifications ne sont pas prises en charge par ce navigateur.",
       );
       return;
     }
-    if (enabled && Notification.permission !== "granted") {
-      const permission =
-        Notification.permission === "default"
-          ? await Notification.requestPermission()
-          : Notification.permission;
-      if (permission !== "granted") {
+    if (enabled && (push.state === "prompt" || push.state === "denied")) {
+      if (push.state === "prompt") {
+        await push.subscribe();
+      } else {
         toast.message(
           "Autorise les notifications dans ton navigateur pour activer ce rappel.",
         );
         return;
       }
     }
-    setReminders((current) => ({ ...current, [key]: enabled }));
+    const updated = {
+      ...adhkarLocal,
+      [key === "morning" ? "morningEnabled" : "eveningEnabled"]: enabled,
+    };
+    setAdhkarLocal(updated);
+    try {
+      await saveAdhkarPrefs(updated);
+    } catch {
+      toast.error("Impossible d'enregistrer le rappel.");
+    }
+  };
+
+  const updateAdhkarTime = async (
+    key: "morning" | "evening",
+    time: string,
+  ) => {
+    const updated = {
+      ...adhkarLocal,
+      [key === "morning" ? "morningTime" : "eveningTime"]: time,
+    };
+    setAdhkarLocal(updated);
+    if (updated.morningEnabled || updated.eveningEnabled) {
+      try {
+        await saveAdhkarPrefs(updated);
+      } catch {
+        toast.error("Impossible d'enregistrer l'heure.");
+      }
+    }
   };
 
   const saveCycleEntry = async (
@@ -2366,21 +2364,17 @@ export default function Dashboard() {
                       <div className="mt-3 divide-y divide-(--n-line)">
                         <ReminderRow
                           label="Adhkar du matin"
-                          time={reminders.morningTime}
-                          enabled={reminders.morning}
-                          onTimeChange={(value) =>
-                            setReminders((current) => ({ ...current, morningTime: value }))
-                          }
-                          onToggle={(value) => void updateReminder("morning", value)}
+                          time={adhkarLocal.morningTime}
+                          enabled={adhkarLocal.morningEnabled}
+                          onTimeChange={(value) => void updateAdhkarTime("morning", value)}
+                          onToggle={(value) => void updateAdhkarReminder("morning", value)}
                         />
                         <ReminderRow
                           label="Adhkar du soir"
-                          time={reminders.eveningTime}
-                          enabled={reminders.evening}
-                          onTimeChange={(value) =>
-                            setReminders((current) => ({ ...current, eveningTime: value }))
-                          }
-                          onToggle={(value) => void updateReminder("evening", value)}
+                          time={adhkarLocal.eveningTime}
+                          enabled={adhkarLocal.eveningEnabled}
+                          onTimeChange={(value) => void updateAdhkarTime("evening", value)}
+                          onToggle={(value) => void updateAdhkarReminder("evening", value)}
                         />
                       </div>
                     </div>
