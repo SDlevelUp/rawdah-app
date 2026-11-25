@@ -22,6 +22,7 @@ import type * as scienceBooks from "../scienceBooks.js";
 import type * as scienceLearning from "../scienceLearning.js";
 import type * as scienceProgress from "../scienceProgress.js";
 import type * as users from "../users.js";
+import type * as zonedTime from "../zonedTime.js";
 
 import type {
   ApiFromModules,
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   scienceLearning: typeof scienceLearning;
   scienceProgress: typeof scienceProgress;
   users: typeof users;
+  zonedTime: typeof zonedTime;
 }>;
 
 /**

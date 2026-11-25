@@ -1,7 +1,14 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
+import {
+  mutation,
+  query,
+  internalQuery,
+  internalMutation,
+  type MutationCtx,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 const prayersValidator = v.object({
   fajr: v.boolean(),
@@ -60,6 +67,8 @@ export const savePreferences = mutation({
       await ctx.scheduler.runAfter(0, internal.prayerRemindersNode.computeAndSendForUser, {
         userId,
       });
+    } else {
+      await cancelPending(ctx, "sendPushToUser", userId);
     }
   },
 });
@@ -155,6 +164,8 @@ export const saveAdhkarPreferences = mutation({
       await ctx.scheduler.runAfter(0, internal.prayerRemindersNode.scheduleAdhkarForUser, {
         userId,
       });
+    } else {
+      await cancelPending(ctx, "sendAdhkarPush", userId);
     }
   },
 });
@@ -202,6 +213,73 @@ export const deleteSubscription = internalMutation({
   },
 });
 
+// ── Remplacement des envois programmés (évite les doublons) ──
+
+// Annule les envois encore en attente de cette fonction : pour cette
+// utilisatrice si `userId` est donné, et seulement ceux prévus dans
+// `window` (le jour local recalculé) si elle est donnée.
+async function cancelPending(
+  ctx: MutationCtx,
+  functionName: string,
+  userId?: Id<"users">,
+  window?: { start: number; end: number },
+) {
+  const pending = await ctx.db.system
+    .query("_scheduled_functions")
+    .filter((q) => q.eq(q.field("state.kind"), "pending"))
+    .collect();
+  for (const job of pending) {
+    if (!job.name.endsWith(`:${functionName}`)) continue;
+    const jobUserId = (job.args[0] as { userId?: string } | undefined)?.userId;
+    if (userId !== undefined && jobUserId !== userId) continue;
+    if (window && (job.scheduledTime < window.start || job.scheduledTime >= window.end)) continue;
+    await ctx.scheduler.cancel(job._id);
+  }
+}
+
+const dayWindow = v.object({ start: v.number(), end: v.number() });
+
+export const replacePrayerPushes = internalMutation({
+  args: {
+    userId: v.id("users"),
+    minutesBefore: v.number(),
+    window: dayWindow,
+    items: v.array(v.object({ at: v.number(), prayer: v.string(), prayerTime: v.string() })),
+  },
+  handler: async (ctx, { userId, minutesBefore, window, items }) => {
+    await cancelPending(ctx, "sendPushToUser", userId, window);
+    for (const item of items) {
+      await ctx.scheduler.runAt(item.at, internal.prayerRemindersNode.sendPushToUser, {
+        userId,
+        prayer: item.prayer,
+        minutesBefore,
+        prayerTime: item.prayerTime,
+      });
+    }
+  },
+});
+
+export const replaceAdhkarPushes = internalMutation({
+  args: {
+    userId: v.id("users"),
+    window: dayWindow,
+    items: v.array(
+      v.object({ at: v.number(), sessionKey: v.string(), title: v.string(), body: v.string() }),
+    ),
+  },
+  handler: async (ctx, { userId, window, items }) => {
+    await cancelPending(ctx, "sendAdhkarPush", userId, window);
+    for (const item of items) {
+      await ctx.scheduler.runAt(item.at, internal.prayerRemindersNode.sendAdhkarPush, {
+        userId,
+        sessionKey: item.sessionKey,
+        title: item.title,
+        body: item.body,
+      });
+    }
+  },
+});
+
 // ── Scheduler : planifie les rappels quotidiens ──
 
 export const scheduleDailyReminders = internalMutation({
@@ -227,7 +305,9 @@ export const scheduleDailyReminders = internalMutation({
       });
     }
 
-    // Se re-planifier pour demain à 00:05 UTC
+    // Se re-planifier pour demain à 00:05 UTC, en annulant toute autre
+    // chaîne en attente (sinon chaque rappel partirait en double).
+    await cancelPending(ctx, "scheduleDailyReminders");
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);

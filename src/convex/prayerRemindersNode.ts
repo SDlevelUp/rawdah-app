@@ -3,6 +3,7 @@
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { ADHKAR_TIME_ZONE, localDayWindow, zonedParts, zonedTimeToUtc } from "./zonedTime";
 
 const PRAYER_NAMES: Record<string, string> = {
   fajr: "Fajr",
@@ -12,7 +13,16 @@ const PRAYER_NAMES: Record<string, string> = {
   isha: "Isha",
 };
 
-type PrayerTimes = { fajr: string; dhuhr: string; asr: string; maghrib: string; isha: string };
+type PrayerTimes = {
+  fajr: string;
+  dhuhr: string;
+  asr: string;
+  maghrib: string;
+  isha: string;
+  timeZone: string;
+  // Jour des horaires, dans le fuseau du lieu.
+  day: { year: number; month: number; day: number };
+};
 
 async function fetchPrayerTimes(prefs: {
   latitude: number;
@@ -37,10 +47,23 @@ async function fetchPrayerTimes(prefs: {
     if (!res.ok) return null;
     const data = (await res.json()) as {
       code?: number;
-      data?: { timings?: Record<string, string> };
+      data?: {
+        timings?: Record<string, string>;
+        date?: { gregorian?: { date?: string } };
+        meta?: { timezone?: string };
+      };
     };
     if (data.code !== 200 || !data.data?.timings) return null;
     const t = data.data.timings;
+
+    const timeZone = data.data.meta?.timezone;
+    const dayMatch = data.data.date?.gregorian?.date?.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (!timeZone || !dayMatch) return null;
+    const day = {
+      year: Number(dayMatch[3]),
+      month: Number(dayMatch[2]),
+      day: Number(dayMatch[1]),
+    };
 
     const normalize = (val: string | undefined) => {
       if (!val) return "";
@@ -55,7 +78,7 @@ async function fetchPrayerTimes(prefs: {
     const isha = normalize(t.Isha);
 
     if (!fajr || !dhuhr || !asr || !maghrib || !isha) return null;
-    return { fajr, dhuhr, asr, maghrib, isha };
+    return { fajr, dhuhr, asr, maghrib, isha, timeZone, day };
   } catch {
     return null;
   }
@@ -73,8 +96,9 @@ export const computeAndSendForUser = internalAction({
     const times = await fetchPrayerTimes(prefs);
     if (!times) return;
 
-    const now = new Date();
+    const now = Date.now();
     const prayers = ["fajr", "dhuhr", "asr", "maghrib", "isha"] as const;
+    const items: { at: number; prayer: string; prayerTime: string }[] = [];
 
     for (const prayer of prayers) {
       if (!prefs.prayers[prayer]) continue;
@@ -83,21 +107,20 @@ export const computeAndSendForUser = internalAction({
       if (!timeStr) continue;
 
       const [hours, minutes] = timeStr.split(":").map(Number);
-      const prayerDate = new Date(now);
-      prayerDate.setHours(hours, minutes, 0, 0);
+      const prayerAt = zonedTimeToUtc(times.day, hours, minutes, times.timeZone);
+      const notifyAt = prayerAt - prefs.reminderMinutesBefore * 60_000;
 
-      const notifyAt = new Date(prayerDate.getTime() - prefs.reminderMinutesBefore * 60_000);
-      const delay = notifyAt.getTime() - now.getTime();
-
-      if (delay > 0) {
-        await ctx.scheduler.runAfter(delay, internal.prayerRemindersNode.sendPushToUser, {
-          userId,
-          prayer: prayer,
-          minutesBefore: prefs.reminderMinutesBefore,
-          prayerTime: timeStr,
-        });
-      }
+      if (notifyAt > now) items.push({ at: notifyAt, prayer, prayerTime: timeStr });
     }
+
+    // Remplace les rappels déjà programmés : pas de doublon si les réglages
+    // sont enregistrés plusieurs fois dans la journée.
+    await ctx.runMutation(internal.prayerReminders.replacePrayerPushes, {
+      userId,
+      minutesBefore: prefs.reminderMinutesBefore,
+      window: localDayWindow(times.day, times.timeZone),
+      items,
+    });
   },
 });
 
@@ -110,7 +133,8 @@ export const scheduleAdhkarForUser = internalAction({
     const subs = await ctx.runQuery(internal.prayerReminders.getUserSubscriptions, { userId });
     if (subs.length === 0) return;
 
-    const now = new Date();
+    const now = Date.now();
+    const today = zonedParts(now, ADHKAR_TIME_ZONE);
 
     const sessions: { key: string; enabled: boolean; time: string; title: string; body: string }[] = [
       {
@@ -129,23 +153,22 @@ export const scheduleAdhkarForUser = internalAction({
       },
     ];
 
+    const items: { at: number; sessionKey: string; title: string; body: string }[] = [];
     for (const session of sessions) {
       if (!session.enabled) continue;
 
       const [hours, minutes] = session.time.split(":").map(Number);
-      const target = new Date(now);
-      target.setHours(hours, minutes, 0, 0);
-      const delay = target.getTime() - now.getTime();
-
-      if (delay > 0) {
-        await ctx.scheduler.runAfter(delay, internal.prayerRemindersNode.sendAdhkarPush, {
-          userId,
-          sessionKey: session.key,
-          title: session.title,
-          body: session.body,
-        });
+      const at = zonedTimeToUtc(today, hours, minutes, ADHKAR_TIME_ZONE);
+      if (at > now) {
+        items.push({ at, sessionKey: session.key, title: session.title, body: session.body });
       }
     }
+
+    await ctx.runMutation(internal.prayerReminders.replaceAdhkarPushes, {
+      userId,
+      window: localDayWindow(today, ADHKAR_TIME_ZONE),
+      items,
+    });
   },
 });
 
