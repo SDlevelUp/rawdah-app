@@ -19,6 +19,7 @@ import { TodayView } from "@/components/dashboard/TodayView";
 import { MySpaceView } from "@/components/dashboard/MySpaceView";
 import { UdhrToggle } from "@/components/dashboard/UdhrToggle";
 import { prayerCalculation, usePrayerTimes } from "@/hooks/use-prayer-times";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { api } from "@/convex/_generated/api";
 import { adhkarBySession, type AdhkarSession } from "@/convex/adhkarData";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
@@ -36,7 +37,7 @@ import { fr } from "date-fns/locale";
 import { Archive, ArchiveRestore, LocateFixed, MapPin, Trash2 } from "lucide-react";
 import { PlaceSearch } from "@/components/dashboard/PlaceSearch";
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -189,6 +190,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const isAnonymousUser = user?.isAnonymous === true;
   const prayer = usePrayerTimes();
+  const push = usePushNotifications();
+  const prayerPrefs = useQuery(api.prayerReminders.getPreferences);
+  const savePrayerPrefs = useMutation(api.prayerReminders.savePreferences);
   const [activeView, setActiveView] = useState<DashboardView>("overview");
   // Le lecteur du Coran reste monté après la première visite : l'écoute
   // continue pendant la navigation, dans une mini-fenêtre.
@@ -342,116 +346,118 @@ export default function Dashboard() {
         return hours * 60 + minutes > clockMinutes;
       })?.[0] ?? null)
     : null;
-  const sortedScienceBooks = [...(scienceBooks ?? [])].sort((a, b) => a.position - b.position);
-  const scienceBookToResume = (() => {
+  const sortedScienceBooks = useMemo(
+    () => [...(scienceBooks ?? [])].sort((a, b) => a.position - b.position),
+    [scienceBooks],
+  );
+  const scienceBookToResume = useMemo(() => {
     const book =
       sortedScienceBooks.find((item) => item.status === "in-progress") ??
       sortedScienceBooks.find((item) => item.status === "to-read");
     return book && book.status !== "read"
       ? { title: book.title, author: book.author, status: book.status }
       : null;
-  })();
-  const recentNotes = (personalNotes ?? [])
-    .filter((note) => note.archived !== true && note.isTask !== true)
-    .sort((a, b) => Number(b.urgent === true) - Number(a.urgent === true))
-    .slice(0, 3);
+  }, [sortedScienceBooks]);
+  const recentNotes = useMemo(
+    () =>
+      (personalNotes ?? [])
+        .filter((note) => note.archived !== true && note.isTask !== true)
+        .sort((a, b) => Number(b.urgent === true) - Number(a.urgent === true))
+        .slice(0, 3),
+    [personalNotes],
+  );
   const selectedEntry = records.find((entry) => entry.date === selectedDayKey);
   const noteDraft = noteDrafts[selectedDayKey] ?? selectedEntry?.note ?? "";
-  const periodDates = records
-    .filter((entry) => entry.isPeriodDay)
-    .map((entry) => parseISO(entry.date));
-  const recordedPeriodDates = new Set(
-    records.filter((entry) => entry.isPeriodDay).map((entry) => entry.date),
+  const periodDates = useMemo(
+    () => records.filter((entry) => entry.isPeriodDay).map((entry) => parseISO(entry.date)),
+    [records],
   );
-  // Un jour oublié au milieu des règles (un seul jour non coché) ne coupe
-  // pas la période : les jours séparés d’au plus 2 jours forment une seule série.
-  const periodRuns = [...recordedPeriodDates]
-    .sort()
-    .reduce<string[][]>((runs, date) => {
-      const lastRun = runs[runs.length - 1];
-      if (!lastRun) {
-        runs.push([date]);
-        return runs;
-      }
-      const previousDate = lastRun[lastRun.length - 1];
-      if (
-        differenceInCalendarDays(parseISO(date), parseISO(previousDate)) <= 2
-      )
-        lastRun.push(date);
-      else runs.push([date]);
-      return runs;
-    }, []);
-  const periodStarts = periodRuns.map((run) => run[0]);
-  const cycleNotes = records
-    .filter((entry) => entry.note?.trim())
-    .sort((first, second) => second.date.localeCompare(first.date));
-  const currentPeriodRun = periodRuns.find(
-    (run) => run[0] <= today && today <= run[run.length - 1],
+  const recordedPeriodDates = useMemo(
+    () => new Set(records.filter((entry) => entry.isPeriodDay).map((entry) => entry.date)),
+    [records],
+  );
+  const periodRuns = useMemo(
+    () =>
+      [...recordedPeriodDates]
+        .sort()
+        .reduce<string[][]>((runs, date) => {
+          const lastRun = runs[runs.length - 1];
+          if (!lastRun) {
+            runs.push([date]);
+            return runs;
+          }
+          const previousDate = lastRun[lastRun.length - 1];
+          if (differenceInCalendarDays(parseISO(date), parseISO(previousDate)) <= 2)
+            lastRun.push(date);
+          else runs.push([date]);
+          return runs;
+        }, []),
+    [recordedPeriodDates],
+  );
+  const periodStarts = useMemo(() => periodRuns.map((run) => run[0]), [periodRuns]);
+  const cycleNotes = useMemo(
+    () =>
+      records
+        .filter((entry) => entry.note?.trim())
+        .sort((first, second) => second.date.localeCompare(first.date)),
+    [records],
+  );
+  const currentPeriodRun = useMemo(
+    () => periodRuns.find((run) => run[0] <= today && today <= run[run.length - 1]),
+    [periodRuns, today],
   );
   const currentPeriodDay = currentPeriodRun
     ? differenceInCalendarDays(new Date(), parseISO(currentPeriodRun[0])) + 1
     : null;
   const isTodayPeriodDay = currentPeriodRun !== undefined;
-  const completedPeriodRuns = periodRuns.filter(
-    (run) => run !== currentPeriodRun && run[run.length - 1] < today,
-  );
   const periodRunLength = (run: string[]) =>
-    differenceInCalendarDays(
-      parseISO(run[run.length - 1]),
-      parseISO(run[0]),
-    ) + 1;
-  const recentPeriodDurations = completedPeriodRuns
-    .slice(-3)
-    .map(periodRunLength);
-  // Les moyennes restent masquées tant qu’il n’y a pas au moins deux règles
-  // terminées (durée) ou deux cycles complets (durée du cycle).
-  const averagePeriodLength =
-    recentPeriodDurations.length >= 2
-      ? Math.round(
-          recentPeriodDurations.reduce((total, length) => total + length, 0) /
-            recentPeriodDurations.length,
-        )
-      : null;
-  const periodDaysRemaining =
-    currentPeriodDay !== null && averagePeriodLength !== null
-      ? Math.max(0, averagePeriodLength - currentPeriodDay)
-      : null;
-  // Un écart de moins de 15 jours ou de plus de 60 jours entre deux débuts
-  // n’est pas compté comme un cycle (saisie incomplète ou mois non noté).
-  const cycleIntervals = periodStarts
-    .slice(1)
-    .map((date, index) =>
-      differenceInCalendarDays(parseISO(date), parseISO(periodStarts[index])),
-    )
-    .filter((interval) => interval >= 15 && interval <= 60)
-    .slice(-3);
-  const averageCycleLength =
-    cycleIntervals.length >= 2
-      ? Math.round(
-          cycleIntervals.reduce((total, interval) => total + interval, 0) /
-            cycleIntervals.length,
-        )
-      : null;
-  const latestPeriodStart = periodStarts[periodStarts.length - 1];
-  const currentCycleDay = latestPeriodStart
-    ? differenceInCalendarDays(new Date(), parseISO(latestPeriodStart)) + 1
-    : null;
-  // Jours de règles notés pendant le Ramadan (mois 9 du calendrier hégirien),
-  // regroupés par année, pour proposer le nombre de jours de jeûne à rattraper.
-  const ramadanPeriodDays = [...recordedPeriodDates]
-    .filter((date) => date <= today)
-    .reduce<Record<number, number>>((byYear, date) => {
-      const hijri = hijriMonthYear(date);
-      if (hijri?.month === 9) byYear[hijri.year] = (byYear[hijri.year] ?? 0) + 1;
-      return byYear;
-    }, {});
-  const ramadanYears = Object.keys(ramadanPeriodDays)
-    .map(Number)
-    .sort((first, second) => first - second);
-  const suggestedQadaTotal = ramadanYears.reduce(
-    (total, year) => total + ramadanPeriodDays[year],
-    0,
-  );
+    differenceInCalendarDays(parseISO(run[run.length - 1]), parseISO(run[0])) + 1;
+  const { averagePeriodLength, averageCycleLength, periodDaysRemaining, currentCycleDay } =
+    useMemo(() => {
+      const completedRuns = periodRuns.filter(
+        (run) => run !== currentPeriodRun && run[run.length - 1] < today,
+      );
+      const recentDurations = completedRuns.slice(-3).map(periodRunLength);
+      const avgPeriod =
+        recentDurations.length >= 2
+          ? Math.round(recentDurations.reduce((t, l) => t + l, 0) / recentDurations.length)
+          : null;
+      const daysRemaining =
+        currentPeriodDay !== null && avgPeriod !== null
+          ? Math.max(0, avgPeriod - currentPeriodDay)
+          : null;
+      const intervals = periodStarts
+        .slice(1)
+        .map((date, i) => differenceInCalendarDays(parseISO(date), parseISO(periodStarts[i])))
+        .filter((interval) => interval >= 15 && interval <= 60)
+        .slice(-3);
+      const avgCycle =
+        intervals.length >= 2
+          ? Math.round(intervals.reduce((t, v) => t + v, 0) / intervals.length)
+          : null;
+      const latest = periodStarts[periodStarts.length - 1];
+      const cycleDay = latest
+        ? differenceInCalendarDays(new Date(), parseISO(latest)) + 1
+        : null;
+      return {
+        averagePeriodLength: avgPeriod,
+        averageCycleLength: avgCycle,
+        periodDaysRemaining: daysRemaining,
+        currentCycleDay: cycleDay,
+      };
+    }, [periodRuns, currentPeriodRun, currentPeriodDay, periodStarts, today]);
+  const { ramadanPeriodDays, ramadanYears, suggestedQadaTotal } = useMemo(() => {
+    const byYear = [...recordedPeriodDates]
+      .filter((date) => date <= today)
+      .reduce<Record<number, number>>((acc, date) => {
+        const hijri = hijriMonthYear(date);
+        if (hijri?.month === 9) acc[hijri.year] = (acc[hijri.year] ?? 0) + 1;
+        return acc;
+      }, {});
+    const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
+    const total = years.reduce((t, y) => t + byYear[y], 0);
+    return { ramadanPeriodDays: byYear, ramadanYears: years, suggestedQadaTotal: total };
+  }, [recordedPeriodDates, today]);
   const hasUdhrOverride = udhrOverride?.date === today;
   const isExcusePeriod = hasUdhrOverride
     ? udhrOverride.value
@@ -468,27 +474,31 @@ export default function Dashboard() {
   };
   const hasUnreadNotes =
     personalNotes?.some((note) => note.isUnread && !note.archived) ?? false;
-  const visiblePersonalNotes = personalNotes
-    ?.filter((note) =>
-      notesSection === "archived"
-        ? note.archived === true
-        : note.archived !== true &&
-          (notesSection === "todo"
-            ? note.isTask === true && note.completed !== true
-            : notesSection === "done"
-              ? note.isTask === true && note.completed === true
-              : true),
-    )
-    .sort(
-      (first, second) =>
-        (second.position ?? second.createdAt) -
-        (first.position ?? first.createdAt),
-    );
-  const daysTrackedThisMonth = records.filter(
-    (entry) =>
-      entry.isPeriodDay &&
-      entry.date.startsWith(format(calendarMonth, "yyyy-MM")),
-  ).length;
+  const visiblePersonalNotes = useMemo(
+    () =>
+      personalNotes
+        ?.filter((note) =>
+          notesSection === "archived"
+            ? note.archived === true
+            : note.archived !== true &&
+              (notesSection === "todo"
+                ? note.isTask === true && note.completed !== true
+                : notesSection === "done"
+                  ? note.isTask === true && note.completed === true
+                  : true),
+        )
+        .sort(
+          (first, second) =>
+            (second.position ?? second.createdAt) -
+            (first.position ?? first.createdAt),
+        ),
+    [personalNotes, notesSection],
+  );
+  const calendarMonthPrefix = format(calendarMonth, "yyyy-MM");
+  const daysTrackedThisMonth = useMemo(
+    () => records.filter((entry) => entry.isPeriodDay && entry.date.startsWith(calendarMonthPrefix)).length,
+    [records, calendarMonthPrefix],
+  );
 
   useEffect(() => {
     if (!user?._id) {
@@ -1409,110 +1419,239 @@ export default function Dashboard() {
                     <span className="n-chip">Enregistré dans ton compte</span>
                   </div>
 
-                  <div className="n-card">
-                    <UdhrToggle
-                      isExcusePeriod={isExcusePeriod}
-                      isExcuseFromCycle={isTodayPeriodDay && !hasUdhrOverride}
-                      onChange={changeExcusePeriod}
-                    />
-                  </div>
-
-
                   <div className="grid gap-3 lg:grid-cols-12">
-                    <div className="flex flex-col gap-3 lg:col-span-7">
-                    <div className="n-card min-w-0 p-3! sm:p-5!">
-                      <CycleCalendar
-                        month={calendarMonth}
-                        onMonthChange={setCalendarMonth}
-                        periodDates={
-                          periodDraft ? [...periodDraft].map((date) => parseISO(date)) : periodDates
-                        }
-                        isEditing={periodDraft !== null}
-                        selectedDate={selectedDate}
-                        onDayClick={(day) => {
-                          if (!periodDraft) {
-                            setSelectedDate(day);
-                            return;
-                          }
-                          const key = format(day, "yyyy-MM-dd");
-                          setPeriodDraft((current) => {
-                            const next = new Set(current);
-                            if (next.has(key)) next.delete(key);
-                            else next.add(key);
-                            return next;
-                          });
-                        }}
+                    {/* Calendrier + Udhr */}
+                    <div className="n-card min-w-0 p-3! sm:p-5! lg:col-span-7">
+                      <UdhrToggle
+                        isExcusePeriod={isExcusePeriod}
+                        isExcuseFromCycle={isTodayPeriodDay && !hasUdhrOverride}
+                        onChange={changeExcusePeriod}
                       />
-                      {periodDraft ? (
-                        <p className="mt-3 text-center text-[14px] text-(--n-muted)" role="status">
-                          Coche ou décoche tes jours de règles, puis enregistre.
-                        </p>
-                      ) : (
-                        <p className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[13px] text-(--n-muted)">
-                          <span className="inline-flex items-center gap-2">
-                            <span className="inline-block size-3 rounded-full bg-(--n-mauve-tint)" aria-hidden="true" />
-                            Règles notées
-                          </span>
-                          <span className="inline-flex items-center gap-2">
-                            <span className="inline-block size-3 rounded-full border-2 border-(--n-sage)" aria-hidden="true" />
-                            Jour choisi
-                          </span>
-                        </p>
-                      )}
-                      <div className="mt-4 flex flex-wrap justify-center gap-3">
+                      <div className="mt-4 border-t border-(--n-line) pt-4">
+                        <CycleCalendar
+                          month={calendarMonth}
+                          onMonthChange={setCalendarMonth}
+                          periodDates={
+                            periodDraft ? [...periodDraft].map((date) => parseISO(date)) : periodDates
+                          }
+                          isEditing={periodDraft !== null}
+                          selectedDate={selectedDate}
+                          onDayClick={(day) => {
+                            if (!periodDraft) {
+                              setSelectedDate(day);
+                              return;
+                            }
+                            const key = format(day, "yyyy-MM-dd");
+                            setPeriodDraft((current) => {
+                              const next = new Set(current);
+                              if (next.has(key)) next.delete(key);
+                              else next.add(key);
+                              return next;
+                            });
+                          }}
+                        />
                         {periodDraft ? (
-                          <>
-                            <button
-                              type="button"
-                              className="n-btn n-btn-ghost disabled:opacity-40"
-                              disabled={isSavingCycleDay}
-                              onClick={() => setPeriodDraft(null)}
-                            >
-                              Annuler
-                            </button>
+                          <p className="mt-3 text-center text-[14px] text-(--n-muted)" role="status">
+                            Coche ou décoche tes jours de règles, puis enregistre.
+                          </p>
+                        ) : (
+                          <p className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[13px] text-(--n-muted)">
+                            <span className="inline-flex items-center gap-2">
+                              <span className="inline-block size-3 rounded-full bg-(--n-mauve-tint)" aria-hidden="true" />
+                              Règles notées
+                            </span>
+                            <span className="inline-flex items-center gap-2">
+                              <span className="inline-block size-3 rounded-full border-2 border-(--n-sage)" aria-hidden="true" />
+                              Jour choisi
+                            </span>
+                          </p>
+                        )}
+                        <div className="mt-4 flex flex-wrap justify-center gap-3">
+                          {periodDraft ? (
+                            <>
+                              <button
+                                type="button"
+                                className="n-btn n-btn-ghost disabled:opacity-40"
+                                disabled={isSavingCycleDay}
+                                onClick={() => setPeriodDraft(null)}
+                              >
+                                Annuler
+                              </button>
+                              <button
+                                type="button"
+                                className="n-btn n-btn-sage disabled:opacity-40"
+                                disabled={isSavingCycleDay}
+                                onClick={() => void savePeriodEdit()}
+                              >
+                                {isSavingCycleDay ? "Enregistrement…" : "Enregistrer les nouvelles règles"}
+                              </button>
+                            </>
+                          ) : (
                             <button
                               type="button"
                               className="n-btn n-btn-sage disabled:opacity-40"
-                              disabled={isSavingCycleDay}
-                              onClick={() => void savePeriodEdit()}
+                              disabled={cycleDays === undefined}
+                              onClick={startPeriodEdit}
                             >
-                              {isSavingCycleDay ? "Enregistrement…" : "Enregistrer les nouvelles règles"}
+                              Modifier les règles
                             </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            className="n-btn n-btn-sage disabled:opacity-40"
-                            disabled={cycleDays === undefined}
-                            onClick={startPeriodEdit}
-                          >
-                            Modifier les règles
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="n-card n-rise grid grid-cols-2 gap-5">
+
+                    {/* Ce jour-là + Symptômes */}
+                    <div className="flex flex-col gap-3 lg:col-span-5">
+                    <div id="cycle-day-editor" className="n-card min-w-0">
+                      <span className="n-label">
+                        {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
+                      </span>
+                      <h2 className="n-display mt-3 text-[22px] font-bold">Ce jour-là</h2>
+                      <p className="mt-1 text-[15px] text-(--n-muted)">
+                        Touche un jour du calendrier pour y noter tes observations ou une note.
+                      </p>
+
+                      <div className="mt-6 border-t border-(--n-line) pt-5">
+                        <p className="text-[14px] font-semibold">
+                          Observations du jour <span className="font-normal text-(--n-muted)">(facultatif)</span>
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {cycleSymptoms.map(({ key, label }) => {
+                            const selected = selectedEntry?.symptoms.includes(key) ?? false;
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                disabled={cycleDays === undefined || isSavingCycleDay}
+                                aria-pressed={selected}
+                                onClick={() => toggleSymptom(key)}
+                                className="n-toggle disabled:opacity-60"
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="mt-6 border-t border-(--n-line) pt-5">
+                        <label htmlFor="cycle-personal-note" className="text-[14px] font-semibold">
+                          Note personnelle <span className="font-normal text-(--n-muted)">(facultatif)</span>
+                        </label>
+                        <textarea
+                          id="cycle-personal-note"
+                          value={noteDraft}
+                          maxLength={2000}
+                          disabled={cycleDays === undefined || isSavingCycleDay}
+                          onChange={(event) =>
+                            setNoteDrafts((current) => ({
+                              ...current,
+                              [selectedDayKey]: event.target.value,
+                            }))
+                          }
+                          placeholder="Ajoute ici une note que tu veux retrouver plus tard…"
+                          className="n-input n-textarea mt-2"
+                        />
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <p className="text-[13px] tabular-nums text-(--n-muted)">{noteDraft.length}/2 000</p>
+                          <button
+                            type="button"
+                            onClick={() => void saveCycleNote()}
+                            disabled={cycleDays === undefined || isSavingCycleDay}
+                            className="n-btn px-4! py-2.5! text-sm! disabled:opacity-40"
+                          >
+                            Enregistrer la note
+                          </button>
+                        </div>
+                        <p className="mt-3 min-h-5 text-[13px] text-(--n-muted)" aria-live="polite">
+                          {cycleDays === undefined
+                            ? "Chargement de ton calendrier…"
+                            : isSavingCycleDay
+                              ? "Enregistrement…"
+                              : "La note est enregistrée pour la date sélectionnée."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <details className="n-card min-w-0">
+                      <summary className="n-display cursor-pointer text-[20px]">
+                        Symptômes notés <span className="text-[15px] font-normal text-(--n-muted)">(facultatif)</span>
+                      </summary>
+                      {cycleDays === undefined ? (
+                        <p className="mt-4 text-[15px] text-(--n-muted)">Chargement des symptômes…</p>
+                      ) : records.filter((entry) => entry.symptoms.length > 0).length === 0 ? (
+                        <p className="mt-3 text-[15px] text-(--n-muted)">
+                          Aucun symptôme noté. Sélectionne une date dans le calendrier et choisis
+                          les observations du jour.
+                        </p>
+                      ) : (
+                        <ul className="mt-3 divide-y divide-(--n-line)">
+                          {[...records]
+                            .filter((entry) => entry.symptoms.length > 0)
+                            .sort((first, second) => second.date.localeCompare(first.date))
+                            .map((entry) => (
+                              <li key={entry._id}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const date = parseISO(entry.date);
+                                    setSelectedDate(date);
+                                    setCalendarMonth(startOfMonth(date));
+                                    requestAnimationFrame(() =>
+                                      document
+                                        .getElementById("cycle-day-editor")
+                                        ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+                                    );
+                                  }}
+                                  className="w-full py-3 text-left"
+                                >
+                                  <time dateTime={entry.date} className="text-[13px] font-semibold text-(--n-sage)">
+                                    {format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}
+                                  </time>
+                                  <span className="mt-2 flex flex-wrap gap-1.5">
+                                    {entry.symptoms.map((symptom) => (
+                                      <span key={symptom} className="n-chip">
+                                        {cycleSymptoms.find((item) => item.key === symptom)?.label ?? symptom}
+                                      </span>
+                                    ))}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                        </ul>
+                      )}
+                    </details>
+                    </div>
+                  </div>
+
+                  {/* Récap stats — pleine largeur */}
+                  <div className="n-card n-rise">
+                    <h2 className="n-display text-[18px]">Récap</h2>
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
                       {[
                         { label: "Jours notés", value: String(daysTrackedThisMonth), hint: "ce mois-ci" },
                         { label: "Débuts notés", value: String(periodStarts.length), hint: "au total" },
                         {
                           label: "Durée des règles",
                           value: averagePeriodLength ? String(averagePeriodLength) : "—",
-                          hint: averagePeriodLength ? `jour${averagePeriodLength === 1 ? "" : "s"} en moyenne` : "à calculer",
+                          hint: averagePeriodLength ? `jour${averagePeriodLength === 1 ? "" : "s"} en moy.` : "à calculer",
                         },
                         {
                           label: "Durée du cycle",
                           value: averageCycleLength ? String(averageCycleLength) : "—",
-                          hint: averageCycleLength ? "jours en moyenne" : "à calculer",
+                          hint: averageCycleLength ? "jours en moy." : "à calculer",
                         },
                       ].map((stat) => (
-                        <div key={stat.label}>
-                          <p className="text-[13px] font-semibold text-(--n-muted)">{stat.label}</p>
-                          <p className="n-display mt-2 text-[30px] leading-none">{stat.value}</p>
-                          <p className="mt-1 text-[13px] text-(--n-muted)">{stat.hint}</p>
+                        <div key={stat.label} className="rounded-xl bg-(--n-sage-tint) px-3 py-3 text-center">
+                          <p className="n-display text-[26px] leading-none">{stat.value}</p>
+                          <p className="mt-1.5 text-[12px] font-semibold text-(--n-muted)">{stat.label}</p>
+                          <p className="text-[11px] text-(--n-muted)">{stat.hint}</p>
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Ramadan / qada — pleine largeur */}
                   <section className="n-card" aria-labelledby="qada-heading">
                     <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
@@ -1612,178 +1751,56 @@ export default function Dashboard() {
                       personne de science.
                     </p>
                   </section>
-                    </div>
-                    <div className="flex flex-col gap-3 lg:col-span-5">
-                    <div id="cycle-day-editor" className="n-card min-w-0">
-                      <span className="n-label">
-                        {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
-                      </span>
-                      <h2 className="n-display mt-3 text-[22px] font-bold">Ce jour-là</h2>
-                      <p className="mt-1 text-[15px] text-(--n-muted)">
-                        Touche un jour du calendrier pour y noter tes observations ou une note.
+
+                  {/* Notes du cycle */}
+                  <section aria-labelledby="cycle-notes-heading" className="n-card min-w-0">
+                    <h2 id="cycle-notes-heading" className="n-display text-[20px]">
+                      Notes du cycle
+                    </h2>
+                    {cycleDays === undefined ? (
+                      <p className="mt-4 text-[15px] text-(--n-muted)">Chargement des notes…</p>
+                    ) : cycleNotes.length === 0 ? (
+                      <p className="mt-3 text-[15px] text-(--n-muted)">
+                        Aucune note pour le moment. Sélectionne une date, écris une note et
+                        enregistre-la.
                       </p>
-
-                      <div className="mt-6 border-t border-(--n-line) pt-5">
-                        <p className="text-[14px] font-semibold">
-                          Observations du jour <span className="font-normal text-(--n-muted)">(facultatif)</span>
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {cycleSymptoms.map(({ key, label }) => {
-                            const selected = selectedEntry?.symptoms.includes(key) ?? false;
-                            return (
-                              <button
-                                key={key}
-                                type="button"
-                                disabled={cycleDays === undefined || isSavingCycleDay}
-                                aria-pressed={selected}
-                                onClick={() => toggleSymptom(key)}
-                                className="n-toggle disabled:opacity-60"
-                              >
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="mt-6 border-t border-(--n-line) pt-5">
-                        <label htmlFor="cycle-personal-note" className="text-[14px] font-semibold">
-                          Note personnelle <span className="font-normal text-(--n-muted)">(facultatif)</span>
-                        </label>
-                        <textarea
-                          id="cycle-personal-note"
-                          value={noteDraft}
-                          maxLength={2000}
-                          disabled={cycleDays === undefined || isSavingCycleDay}
-                          onChange={(event) =>
-                            setNoteDrafts((current) => ({
-                              ...current,
-                              [selectedDayKey]: event.target.value,
-                            }))
-                          }
-                          placeholder="Ajoute ici une note que tu veux retrouver plus tard…"
-                          className="n-input n-textarea mt-2"
-                        />
-                        <div className="mt-2 flex items-center justify-between gap-3">
-                          <p className="text-[13px] tabular-nums text-(--n-muted)">{noteDraft.length}/2 000</p>
-                          <button
-                            type="button"
-                            onClick={() => void saveCycleNote()}
-                            disabled={cycleDays === undefined || isSavingCycleDay}
-                            className="n-btn px-4! py-2.5! text-sm! disabled:opacity-40"
-                          >
-                            Enregistrer la note
-                          </button>
-                        </div>
-                        <p className="mt-3 min-h-5 text-[13px] text-(--n-muted)" aria-live="polite">
-                          {cycleDays === undefined
-                            ? "Chargement de ton calendrier…"
-                            : isSavingCycleDay
-                              ? "Enregistrement…"
-                              : "La note est enregistrée pour la date sélectionnée."}
-                        </p>
-                      </div>
-
-                    </div>
-                    <section aria-labelledby="cycle-notes-heading" className="n-card min-w-0">
-                      <h2 id="cycle-notes-heading" className="n-display text-[20px]">
-                        Notes du cycle
-                      </h2>
-                      {cycleDays === undefined ? (
-                        <p className="mt-4 text-[15px] text-(--n-muted)">Chargement des notes…</p>
-                      ) : cycleNotes.length === 0 ? (
-                        <p className="mt-3 text-[15px] text-(--n-muted)">
-                          Aucune note pour le moment. Sélectionne une date, écris une note et
-                          enregistre-la.
-                        </p>
-                      ) : (
-                        <ul className="mt-3 divide-y divide-(--n-line)">
-                          {cycleNotes.map((entry) => (
-                            <li key={entry._id} className="flex items-start gap-2 py-3">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const date = parseISO(entry.date);
-                                  setSelectedDate(date);
-                                  setCalendarMonth(startOfMonth(date));
-                                  requestAnimationFrame(() =>
-                                    document
-                                      .getElementById("cycle-day-editor")
-                                      ?.scrollIntoView({ behavior: "smooth", block: "center" }),
-                                  );
-                                }}
-                                className="min-w-0 flex-1 text-left"
-                              >
-                                <time dateTime={entry.date} className="text-[13px] font-semibold text-(--n-sage)">
-                                  {format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}
-                                </time>
-                                <p className="mt-1 whitespace-pre-wrap text-[15px] leading-6">{entry.note}</p>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void deleteCycleNote(entry)}
-                                disabled={isSavingCycleDay}
-                                aria-label={`Supprimer la note du ${format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}`}
-                                className="n-link shrink-0 text-[13px] text-(--n-muted)! disabled:opacity-50"
-                              >
-                                Supprimer
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </section>
-
-                    <details className="n-card min-w-0">
-                      <summary className="n-display cursor-pointer text-[20px]">
-                        Symptômes notés <span className="text-[15px] font-normal text-(--n-muted)">(facultatif)</span>
-                      </summary>
-                      {cycleDays === undefined ? (
-                        <p className="mt-4 text-[15px] text-(--n-muted)">Chargement des symptômes…</p>
-                      ) : records.filter((entry) => entry.symptoms.length > 0).length === 0 ? (
-                        <p className="mt-3 text-[15px] text-(--n-muted)">
-                          Aucun symptôme noté. Sélectionne une date dans le calendrier et choisis
-                          les observations du jour.
-                        </p>
-                      ) : (
-                        <ul className="mt-3 divide-y divide-(--n-line)">
-                          {[...records]
-                            .filter((entry) => entry.symptoms.length > 0)
-                            .sort((first, second) => second.date.localeCompare(first.date))
-                            .map((entry) => (
-                              <li key={entry._id}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const date = parseISO(entry.date);
-                                    setSelectedDate(date);
-                                    setCalendarMonth(startOfMonth(date));
-                                    requestAnimationFrame(() =>
-                                      document
-                                        .getElementById("cycle-day-editor")
-                                        ?.scrollIntoView({ behavior: "smooth", block: "center" }),
-                                    );
-                                  }}
-                                  className="w-full py-3 text-left"
-                                >
-                                  <time dateTime={entry.date} className="text-[13px] font-semibold text-(--n-sage)">
-                                    {format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}
-                                  </time>
-                                  <span className="mt-2 flex flex-wrap gap-1.5">
-                                    {entry.symptoms.map((symptom) => (
-                                      <span key={symptom} className="n-chip">
-                                        {cycleSymptoms.find((item) => item.key === symptom)?.label ?? symptom}
-                                      </span>
-                                    ))}
-                                  </span>
-                                </button>
-                              </li>
-                            ))}
-                        </ul>
-                      )}
-                    </details>
-                    </div>
-                  </div>
+                    ) : (
+                      <ul className="mt-3 divide-y divide-(--n-line)">
+                        {cycleNotes.map((entry) => (
+                          <li key={entry._id} className="flex items-start gap-2 py-3">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const date = parseISO(entry.date);
+                                setSelectedDate(date);
+                                setCalendarMonth(startOfMonth(date));
+                                requestAnimationFrame(() =>
+                                  document
+                                    .getElementById("cycle-day-editor")
+                                    ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+                                );
+                              }}
+                              className="min-w-0 flex-1 text-left"
+                            >
+                              <time dateTime={entry.date} className="text-[13px] font-semibold text-(--n-sage)">
+                                {format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}
+                              </time>
+                              <p className="mt-1 whitespace-pre-wrap text-[15px] leading-6">{entry.note}</p>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void deleteCycleNote(entry)}
+                              disabled={isSavingCycleDay}
+                              aria-label={`Supprimer la note du ${format(parseISO(entry.date), "d MMMM yyyy", { locale: fr })}`}
+                              className="n-link shrink-0 text-[13px] text-(--n-muted)! disabled:opacity-50"
+                            >
+                              Supprimer
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
 
                   {cycleDays?.length === 0 && (
                     <p className="text-center text-[13px] leading-5 text-(--n-muted)">
@@ -2320,35 +2337,53 @@ export default function Dashboard() {
                   </article>
 
                   <article id="dashboard-reminders" className="n-card scroll-mt-24">
-                    <h2 className="n-display text-[22px]">Rappels</h2>
+                    <h2 className="n-display text-[22px]">Rappels de prière</h2>
                     <p className="mt-1 text-[14px] text-(--n-muted)">
-                      Discrets, sans détail personnel.
+                      Une notification avant chaque salat.
                     </p>
-                    <div className="mt-5 divide-y divide-(--n-line)">
-                      <ReminderRow
-                        label="Adhkar du matin"
-                        time={reminders.morningTime}
-                        enabled={reminders.morning}
-                        onTimeChange={(value) =>
-                          setReminders((current) => ({ ...current, morningTime: value }))
-                        }
-                        onToggle={(value) => void updateReminder("morning", value)}
+
+                    {push.state === "unsupported" ? (
+                      <p className="mt-4 text-[13px] leading-5 text-(--n-muted)">
+                        Les notifications ne sont pas prises en charge par ce navigateur.
+                        Installe Rawdah sur ton écran d’accueil pour les activer.
+                      </p>
+                    ) : push.state === "denied" ? (
+                      <p className="mt-4 text-[13px] leading-5 text-(--n-muted)">
+                        Les notifications sont bloquées. Autorise-les dans les réglages de
+                        ton navigateur pour activer les rappels.
+                      </p>
+                    ) : (
+                      <PrayerReminderSettings
+                        prayer={prayer}
+                        push={push}
+                        prayerPrefs={prayerPrefs}
+                        savePrayerPrefs={savePrayerPrefs}
                       />
-                      <ReminderRow
-                        label="Adhkar du soir"
-                        time={reminders.eveningTime}
-                        enabled={reminders.evening}
-                        onTimeChange={(value) =>
-                          setReminders((current) => ({ ...current, eveningTime: value }))
-                        }
-                        onToggle={(value) => void updateReminder("evening", value)}
-                      />
+                    )}
+
+                    <div className="mt-6 border-t border-(--n-line) pt-5">
+                      <h3 className="text-[16px] font-semibold">Rappels d’adhkar</h3>
+                      <div className="mt-3 divide-y divide-(--n-line)">
+                        <ReminderRow
+                          label="Adhkar du matin"
+                          time={reminders.morningTime}
+                          enabled={reminders.morning}
+                          onTimeChange={(value) =>
+                            setReminders((current) => ({ ...current, morningTime: value }))
+                          }
+                          onToggle={(value) => void updateReminder("morning", value)}
+                        />
+                        <ReminderRow
+                          label="Adhkar du soir"
+                          time={reminders.eveningTime}
+                          enabled={reminders.evening}
+                          onTimeChange={(value) =>
+                            setReminders((current) => ({ ...current, eveningTime: value }))
+                          }
+                          onToggle={(value) => void updateReminder("evening", value)}
+                        />
+                      </div>
                     </div>
-                    <p className="mt-4 text-[13px] leading-5 text-(--n-muted)">
-                      Les rappels fonctionnent lorsque Rawdah est ouverte. Sur iPhone, les
-                      notifications écran verrouillé demandent l’installation sur l’écran
-                      d’accueil et un service Web Push, qui n’est pas encore configuré.
-                    </p>
                   </article>
                 </div>
               </section>
@@ -2365,6 +2400,177 @@ export default function Dashboard() {
         </div>
       </div>
     </main>
+  );
+}
+
+const PRAYER_KEYS = ["fajr", "dhuhr", "asr", "maghrib", "isha"] as const;
+const PRAYER_LABELS: Record<string, string> = {
+  fajr: "Fajr",
+  dhuhr: "Dhouhr",
+  asr: "Asr",
+  maghrib: "Maghrib",
+  isha: "Isha",
+};
+const MINUTES_OPTIONS = [0, 5, 10, 15, 20, 30];
+
+function PrayerReminderSettings({
+  prayer,
+  push,
+  prayerPrefs,
+  savePrayerPrefs,
+}: {
+  prayer: ReturnType<typeof usePrayerTimes>;
+  push: ReturnType<typeof usePushNotifications>;
+  prayerPrefs: {
+    reminderEnabled: boolean;
+    reminderMinutesBefore: number;
+    prayers: { fajr: boolean; dhuhr: boolean; asr: boolean; maghrib: boolean; isha: boolean };
+  } | null | undefined;
+  savePrayerPrefs: (args: {
+    latitude: number;
+    longitude: number;
+    placeLabel?: string;
+    school: number;
+    reminderEnabled: boolean;
+    reminderMinutesBefore: number;
+    prayers: { fajr: boolean; dhuhr: boolean; asr: boolean; maghrib: boolean; isha: boolean };
+  }) => Promise<null>;
+}) {
+  const [enabled, setEnabled] = useState(prayerPrefs?.reminderEnabled ?? false);
+  const [minutesBefore, setMinutesBefore] = useState(prayerPrefs?.reminderMinutesBefore ?? 15);
+  const [prayers, setPrayers] = useState({
+    fajr: prayerPrefs?.prayers?.fajr ?? true,
+    dhuhr: prayerPrefs?.prayers?.dhuhr ?? true,
+    asr: prayerPrefs?.prayers?.asr ?? true,
+    maghrib: prayerPrefs?.prayers?.maghrib ?? true,
+    isha: prayerPrefs?.prayers?.isha ?? true,
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!prayerPrefs) return;
+    setEnabled(prayerPrefs.reminderEnabled);
+    setMinutesBefore(prayerPrefs.reminderMinutesBefore);
+    setPrayers(prayerPrefs.prayers);
+  }, [prayerPrefs]);
+
+  const hasLocation = prayer.preferences.coordinates !== null;
+
+  const save = async (newEnabled: boolean, newMinutes: number, newPrayers: typeof prayers) => {
+    if (!prayer.preferences.coordinates) {
+      toast.message("Choisis ta ville dans les horaires de prière pour activer les rappels.");
+      return;
+    }
+
+    if (newEnabled && push.state !== "granted") {
+      const ok = await push.subscribe();
+      if (!ok) return;
+    }
+
+    setIsSaving(true);
+    try {
+      await savePrayerPrefs({
+        latitude: prayer.preferences.coordinates.latitude,
+        longitude: prayer.preferences.coordinates.longitude,
+        placeLabel: prayer.preferences.placeLabel ?? undefined,
+        school: prayer.preferences.school,
+        reminderEnabled: newEnabled,
+        reminderMinutesBefore: newMinutes,
+        prayers: newPrayers,
+      });
+      toast.success(newEnabled ? "Rappels de prière activés." : "Rappels de prière désactivés.");
+    } catch {
+      toast.error("Erreur lors de l'enregistrement.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleToggle = (value: boolean) => {
+    setEnabled(value);
+    void save(value, minutesBefore, prayers);
+  };
+
+  const handleMinutesChange = (value: number) => {
+    setMinutesBefore(value);
+    if (enabled) void save(true, value, prayers);
+  };
+
+  const handlePrayerToggle = (key: typeof PRAYER_KEYS[number], value: boolean) => {
+    const updated = { ...prayers, [key]: value };
+    setPrayers(updated);
+    if (enabled) void save(true, minutesBefore, updated);
+  };
+
+  return (
+    <div className="mt-5">
+      {!hasLocation && (
+        <p className="mb-3 text-[13px] leading-5 text-(--n-muted)">
+          Choisis ta ville dans la section « Horaires de prière » ci-dessus pour activer les rappels.
+        </p>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[15px] font-semibold">Activer les rappels</p>
+          <p className="mt-0.5 text-[13px] text-(--n-muted)">
+            {enabled
+              ? `${minutesBefore > 0 ? `${minutesBefore} min avant` : "À l'heure de"} chaque salat`
+              : "Désactivé"}
+          </p>
+        </div>
+        <Switch
+          checked={enabled}
+          onCheckedChange={handleToggle}
+          disabled={!hasLocation || isSaving}
+          aria-label="Activer les rappels de prière"
+        />
+      </div>
+
+      {enabled && (
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="text-[14px] font-medium">Rappeler</label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {MINUTES_OPTIONS.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => handleMinutesChange(m)}
+                  className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                    minutesBefore === m
+                      ? "bg-(--n-accent) text-white"
+                      : "bg-(--n-surface) text-(--n-text) hover:bg-(--n-surface-hover)"
+                  }`}
+                >
+                  {m === 0 ? "À l'heure" : `${m} min avant`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="divide-y divide-(--n-line)">
+            {PRAYER_KEYS.map((key) => (
+              <div key={key} className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-[15px]">{PRAYER_LABELS[key]}</span>
+                  {prayer.times && (
+                    <span className="text-[13px] tabular-nums text-(--n-muted)">
+                      {prayer.times[key]}
+                    </span>
+                  )}
+                </div>
+                <Switch
+                  checked={prayers[key]}
+                  onCheckedChange={(v) => handlePrayerToggle(key, v)}
+                  disabled={isSaving}
+                  aria-label={`Rappel pour ${PRAYER_LABELS[key]}`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

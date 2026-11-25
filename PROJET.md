@@ -12,6 +12,8 @@ Application web d'organisation spirituelle et personnelle : planning avec horair
 - Hébergement front : Vercel (`vercel.json`, réécriture SPA) ; `main.ts` sert aussi `dist/` avec Hono sous Deno.
 - Déploiement du back : le `buildCommand` de `vercel.json` lance `npx convex deploy` avant le build si `CONVEX_DEPLOY_KEY` est définie, sinon il ne construit que le front. Sans cette clé, toute modification de `src/convex/` doit être déployée à la main : `CONVEX_DEPLOYMENT=prod:useful-anaconda-844 npx convex deploy`.
 - Horaires de prière : API AlAdhan (gratuite), réglages imposés de la mosquée Al-Houda d'Antony sur Mawaqit (méthode personnalisée : Fajr 15°, Isha 15°, Maghrib + 4 min, ajustement haute latitude « angle based ») ; constante `prayerCalculation` dans `src/hooks/use-prayer-times.ts`.
+- Notifications push : Web Push natif (VAPID keys), service worker (`public/sw.js`), subscriptions et préférences dans Convex (tables `pushSubscriptions` et `prayerPreferences`), actions Node.js dans `src/convex/prayerRemindersNode.ts`. L'envoi est planifié par `scheduleDailyReminders` (cron interne Convex).
+- PWA : manifest dans `public/manifest.webmanifest`, service worker pour le cache offline (assets, pages HTML) et la réception push. L'app est installable sur l'écran d'accueil.
 - Recherche de ville : Open-Meteo Geocoding ; mosquées proches : Photon (komoot, données OpenStreetMap). Les deux sans clé ni compte.
 - Design du dashboard : `src/styles/nour-ui.css` (classes `n-*`, mode nuit compris), polices Albert Sans (titres), Urbanist (texte), Amiri et Noto Naskh Arabic (arabe).
 
@@ -53,6 +55,11 @@ Côté Convex (`npx convex env set`) :
 - `NOUR_DEMO_MODE` : `true` sur le déploiement de test pour désactiver Google et e-mail.
 - `NOUR_MAILER_URL` : adresse du relais d’envoi des codes de connexion (`https://sdlevelup.fr/rawdah-mailer/send-otp.php`).
 - `NOUR_MAILER_API_KEY` : clé partagée entre Convex et le relais ; la même figure dans `rawdah-mailer-secrets.php` sur Hostinger.
+- `VAPID_PUBLIC_KEY` : clé publique VAPID pour les notifications Web Push.
+- `VAPID_PRIVATE_KEY` : clé privée VAPID pour l'envoi des notifications push.
+
+Côté front (`.env`, Vercel) — ajout :
+- `VITE_VAPID_PUBLIC_KEY` : clé publique VAPID (même valeur que `VAPID_PUBLIC_KEY` côté Convex).
 
 ## Feuille de route
 
@@ -148,7 +155,7 @@ Côté Convex (`npx convex env set`) :
 
 - `.env` a été suivi par git jusqu'au commit `2260268` : il reste dans l'historique. Il ne contenait que `VITE_CONVEX_URL`, `CONVEX_SITE_URL` et `CONVEX_DEPLOYMENT` (adresses, pas de clé secrète).
 - Le README demande `bun`, mais le repo contient un `package-lock.json` (npm) : gestionnaire de paquets à clarifier.
-- Notifications navigateur : envoyées seulement quand l'application est ouverte.
+- Notifications push : nécessitent le déploiement des variables `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY` dans Convex, et `VITE_VAPID_PUBLIC_KEY` dans Vercel. Le scheduler doit être amorcé une fois en production (`bootstrapScheduler` dans `prayerReminders.ts`).
 - `CONVEX_DEPLOYMENT` est vide dans le `.env` local : le CLI Convex ne sait pas quel projet viser sans préfixer la commande (`CONVEX_DEPLOYMENT=prod:useful-anaconda-844`). Nom du déploiement de dev : [À CONFIRMER].
 - `CONVEX_DEPLOY_KEY` n'est pas encore ajoutée dans Vercel [À CONFIRMER] : tant qu'elle manque, le déploiement Convex reste manuel.
 - La progression des adhkar est stockée par position (`currentIndex`) : quand la liste change, le front et Convex doivent être déployés ensemble, sinon le bouton de répétition renvoie une erreur. Une progression en cours le jour du déploiement peut être décalée.
@@ -163,4 +170,5 @@ Côté Convex (`npx convex env set`) :
 
 ### Journal (suite)
 
+- 2026-11-25 : rappels de prière par notifications push (Web Push natif, zéro coût). Service worker (`public/sw.js`) pour le cache offline et la réception des notifications. Nouvelles tables Convex `prayerPreferences` (coordonnées, école, prières à rappeler, délai) et `pushSubscriptions` (endpoint, clés p256dh et auth). Actions Node.js dans `src/convex/prayerRemindersNode.ts` (calcul des horaires via AlAdhan, envoi via web-push). Scheduler interne Convex (`scheduleDailyReminders`) qui se re-planifie chaque jour à 00:05 UTC. UI dans les Réglages : activation par prière, choix du délai (0 à 30 min avant). Manifest PWA complété (`start_url: /dashboard`, `scope`, `orientation`, `categories`). L'app est désormais installable sur l'écran d'accueil. Variables d'environnement ajoutées : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (Convex), `VITE_VAPID_PUBLIC_KEY` (front). Dépendance ajoutée : `web-push`.
 - 2026-11-03 : lecteur audio du Coran migré de l'API alquran.cloud vers l'API Quran.com (api.quran.com/api/v4) et le CDN audio verses.quran.com. Motivation : ajout du récitateur Muhammad Minshawi (Murattal et Mujawwad), absent d'alquran.cloud. 12 récitateurs disponibles (AbdulBaset Murattal et Mujawwad, Sudais, Shatri, Rifai, Husary et Husary Muallim, Alafasy, Minshawi Murattal et Mujawwad, Shuraym, Tablawi). La translitération (phonétique) reste chargée depuis alquran.cloud ; en cas d'indisponibilité elle affiche « Phonétique non disponible » sans bloquer le lecteur. Le texte arabe et la traduction française viennent toujours du JSON GitHub (mehdi-stark/Coran-Quran). Audio Al-Kahf de la page publique migré vers le même CDN. Les positions de reprise enregistrées avant cette migration ne retrouveront pas le récitateur (format d'identifiant changé, de `ar.alafasy` à `7`), Alafasy sera utilisé par défaut.

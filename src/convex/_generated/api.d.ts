@@ -15,6 +15,8 @@ import type * as auth_emailOtp from "../auth/emailOtp.js";
 import type * as cycleTracking from "../cycleTracking.js";
 import type * as http from "../http.js";
 import type * as personalNotes from "../personalNotes.js";
+import type * as prayerReminders from "../prayerReminders.js";
+import type * as prayerRemindersNode from "../prayerRemindersNode.js";
 import type * as quranProgress from "../quranProgress.js";
 import type * as scienceBooks from "../scienceBooks.js";
 import type * as scienceLearning from "../scienceLearning.js";
@@ -35,6 +37,8 @@ declare const fullApi: ApiFromModules<{
   cycleTracking: typeof cycleTracking;
   http: typeof http;
   personalNotes: typeof personalNotes;
+  prayerReminders: typeof prayerReminders;
+  prayerRemindersNode: typeof prayerRemindersNode;
   quranProgress: typeof quranProgress;
   scienceBooks: typeof scienceBooks;
   scienceLearning: typeof scienceLearning;

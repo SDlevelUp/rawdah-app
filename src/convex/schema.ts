@@ -127,6 +127,33 @@ const schema = defineSchema(
       createdAt: v.number(),
     }).index("by_user_position", ["userId", "position"]),
 
+    prayerPreferences: defineTable({
+      userId: v.id("users"),
+      latitude: v.number(),
+      longitude: v.number(),
+      placeLabel: v.optional(v.string()),
+      school: v.number(),
+      reminderEnabled: v.boolean(),
+      reminderMinutesBefore: v.number(),
+      prayers: v.object({
+        fajr: v.boolean(),
+        dhuhr: v.boolean(),
+        asr: v.boolean(),
+        maghrib: v.boolean(),
+        isha: v.boolean(),
+      }),
+    }).index("by_user", ["userId"]),
+
+    pushSubscriptions: defineTable({
+      userId: v.id("users"),
+      endpoint: v.string(),
+      p256dh: v.string(),
+      auth: v.string(),
+      createdAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_endpoint", ["endpoint"]),
+
     scienceLearningItems: defineTable({
       userId: v.id("users"),
       kind: v.union(v.literal("matn"), v.literal("hadith")),

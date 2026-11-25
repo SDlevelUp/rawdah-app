@@ -2,8 +2,10 @@
   "name": "Rawdah",
   "short_name": "Rawdah",
   "description": "Application musulmane : adhkar, Coran et horaires de prière.",
-  "start_url": "/",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#faf7f0",
   "theme_color": "#3f5a47",
   "icons": [
@@ -12,7 +14,15 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ],
-  "lang": "fr"
+  "categories": ["lifestyle", "education"],
+  "lang": "fr",
+  "dir": "ltr"
 }
