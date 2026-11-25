@@ -10,6 +10,12 @@ export type Annonce = {
 
 export const annonces: Annonce[] = [
   {
+    id: "2026-11-25-rappels-priere",
+    date: "2026-11-25",
+    title: "Rappels de prière",
+    text: "Rawdah peut t'envoyer une notification avant chaque salat. Dans Réglages → Rappels de prière, choisis les prières et le délai. L'app est aussi installable sur ton écran d'accueil.",
+  },
+  {
     id: "2026-10-28-mot-de-passe",
     date: "2026-10-28",
     title: "Ton propre mot de passe",
