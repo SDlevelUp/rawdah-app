@@ -55,6 +55,12 @@ export const savePreferences = mutation({
     } else {
       await ctx.db.insert("prayerPreferences", data);
     }
+
+    if (args.reminderEnabled) {
+      await ctx.scheduler.runAfter(0, internal.prayerRemindersNode.computeAndSendForUser, {
+        userId,
+      });
+    }
   },
 });
 
@@ -143,6 +149,12 @@ export const saveAdhkarPreferences = mutation({
       await ctx.db.replace(existing._id, data);
     } else {
       await ctx.db.insert("adhkarPreferences", data);
+    }
+
+    if (args.morningEnabled || args.eveningEnabled) {
+      await ctx.scheduler.runAfter(0, internal.prayerRemindersNode.scheduleAdhkarForUser, {
+        userId,
+      });
     }
   },
 });
