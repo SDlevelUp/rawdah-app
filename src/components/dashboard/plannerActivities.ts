@@ -31,7 +31,7 @@ export function getDefaultActivities(): PlannerActivity[] {
       id: "science-study",
       time: "10:00",
       title: "Étude de livre de science",
-      detail: "Tafsir ou Hadith · lecture et prise de notes",
+      detail: "Tafsir ou Hadith - lecture et prise de notes",
       kind: "science",
     },
     {

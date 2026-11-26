@@ -2141,6 +2141,48 @@
   background: var(--n-sage-tint);
 }
 
+.n-popover-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--n-muted);
+}
+
+.n-popover-close:hover {
+  background: var(--n-sage-tint);
+  color: var(--n-ink);
+}
+
+.n-popover-close:focus-visible,
+.n-time-pill:focus-visible {
+  outline: 2px solid var(--n-sage);
+  outline-offset: 2px;
+}
+
+/* Heure de rappel en pastille (rappels d'adhkar). */
+.n-time-pill {
+  border: 0;
+  border-radius: 10px;
+  background: var(--n-sage-tint);
+  padding: 7px 10px;
+  color: var(--n-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.n-time-pill::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
 .n-annonce {
   border-top: 1px solid var(--n-line);
   padding: 12px 4px;

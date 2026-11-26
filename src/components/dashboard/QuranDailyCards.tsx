@@ -36,7 +36,7 @@ export function QuranDailyCards({ hidden }: { hidden?: boolean }) {
             <p className="mt-1 text-[14px] leading-6 text-(--n-muted)">{mot.verseTranslation}</p>
           </div>
           <figcaption className="mt-auto pt-4 text-[13px] text-(--n-muted)">
-            Sourate {mot.surah}, verset {mot.verse} · {sourceMotsDuCoran.titre},{" "}
+            Sourate {mot.surah}, verset {mot.verse} - {sourceMotsDuCoran.titre},{" "}
             <a href={sourceMotsDuCoran.lien} target="_blank" rel="noreferrer" className="underline">
               {sourceMotsDuCoran.auteur}
             </a>
@@ -49,7 +49,7 @@ export function QuranDailyCards({ hidden }: { hidden?: boolean }) {
           <blockquote className="n-rappel-text">{extrait.text}</blockquote>
           <figcaption className="mt-auto pt-4 text-[13px] text-(--n-muted)">
             <span className="font-semibold text-(--n-ink)">{livreMemorisateur.auteur}</span>
-            {" · "}
+            {" - "}
             {livreMemorisateur.titre}, {extrait.page}
           </figcaption>
         </figure>

@@ -1,4 +1,4 @@
-import { Bell, LogOut, MoonStar } from "lucide-react";
+import { Bell, LogOut, MoonStar, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Switch } from "@/components/ui/switch";
 import { annonces } from "@/data/annonces";
@@ -107,7 +107,17 @@ export function TopActions({
           </button>
         }
       >
-        <p className="n-display px-1 text-[17px]">Nouveautés</p>
+        <div className="flex items-center justify-between gap-2 px-1">
+          <p className="n-display text-[17px]">Nouveautés</p>
+          <button
+            type="button"
+            className="n-popover-close"
+            aria-label="Fermer"
+            onClick={() => openBell(false)}
+          >
+            <X className="size-4" strokeWidth={2} />
+          </button>
+        </div>
         <ul className="mt-2 max-h-[min(60vh,420px)] overflow-y-auto">
           {annonces.map((annonce) => (
             <li key={annonce.id} className="n-annonce">

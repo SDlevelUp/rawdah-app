@@ -658,7 +658,7 @@ export function QuranAudioReader({
         <div className="min-w-0">
           <span className="n-label">Reprendre l’écoute</span>
           <p className="mt-1 text-[17px] font-semibold">
-            {savedPosition.surah} · verset {savedPosition.ayah}
+            {savedPosition.surah} - verset {savedPosition.ayah}
           </p>
           {savedPosition.reciter && (
             <p className="text-[13px] text-(--n-muted)">{savedPosition.reciter}</p>
@@ -738,7 +738,7 @@ export function QuranAudioReader({
             <span className="n-label">
               Sourate {selectedSurah}
               {selectedSurahData?.revelationType
-                ? ` · ${selectedSurahData.revelationType.toLowerCase() === "meccan" ? "mecquoise" : "médinoise"}`
+                ? ` - ${selectedSurahData.revelationType.toLowerCase() === "meccan" ? "mecquoise" : "médinoise"}`
                 : ""}
             </span>
             <h2 className="n-display mt-2 text-[28px] leading-tight">
@@ -828,7 +828,7 @@ export function QuranAudioReader({
           <div className="n-player">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="font-semibold">
-                {selectedSurahData?.englishName} · verset {currentAyah}
+                {selectedSurahData?.englishName} - verset {currentAyah}
                 <span className="font-normal text-(--n-muted)"> / {endAyah}</span>
               </span>
               <span className="inline-flex items-center gap-1.5 text-(--n-muted)">

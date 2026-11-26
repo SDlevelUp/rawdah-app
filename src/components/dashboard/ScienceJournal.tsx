@@ -308,7 +308,7 @@ export function ScienceJournal({
           <blockquote className="n-rappel-text">{passage.text}</blockquote>
           <figcaption className="mt-4 text-[13px] text-(--n-muted)">
             <span className="font-semibold text-(--n-ink)">{passage.author}</span>
-            {" · "}
+            {" - "}
             {passage.book}
             {passage.page && `, ${passage.page}`}
           </figcaption>
@@ -567,7 +567,7 @@ export function ScienceJournal({
                         {new Date(`${entry.date}T12:00:00`).toLocaleDateString("fr-FR", {
                           dateStyle: "long",
                         })}
-                        {" · "}
+                        {" - "}
                         {entry.time ?? "10:00"}
                       </time>
                       <div className="flex shrink-0 gap-3">

@@ -400,7 +400,7 @@ export function LearningModule() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <span className="n-label">
-                      {item.kind === "matn" ? "Matn" : "Hadith · source à relire"}
+                      {item.kind === "matn" ? "Matn" : "Hadith - source à relire"}
                     </span>
                     <h3 className="n-display mt-2 text-[18px]">{item.title}</h3>
                   </div>

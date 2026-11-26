@@ -268,7 +268,7 @@ export function DailyPlanner({
                 <li key={event.id ?? `${event.kind}-${event.title}`}>
                   {index === nextEventIndex && (
                     <p className="n-now" aria-label="Maintenant">
-                      Maintenant · {now.toTimeString().slice(0, 5)}
+                      Maintenant - {now.toTimeString().slice(0, 5)}
                     </p>
                   )}
                   <div
@@ -285,7 +285,7 @@ export function DailyPlanner({
                     <div className="n-agenda-body">
                       <p className="n-agenda-title">{event.title}</p>
                       <p className="n-agenda-detail">
-                        {state === "next" ? "À venir · " : ""}
+                        {state === "next" ? "À venir - " : ""}
                         {event.detail}
                       </p>
                     </div>
@@ -309,7 +309,7 @@ export function DailyPlanner({
           </ol>
           {visiblePlannerEvents.length > 0 && nextEventIndex === -1 && (
             <p className="n-now mt-2" role="status">
-              Journée terminée · {now.toTimeString().slice(0, 5)}
+              Journée terminée - {now.toTimeString().slice(0, 5)}
             </p>
           )}
           {visiblePlannerEvents.length === 0 && (

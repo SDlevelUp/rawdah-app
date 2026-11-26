@@ -163,7 +163,7 @@ export default function Landing() {
 
         <div className="rw-wrap rw-moment-grid rw-hero-grid">
           <div className="relative z-10">
-            <p className="rw-time-label">Fajr · {timeOf("Fajr")}</p>
+            <p className="rw-time-label">Fajr - {timeOf("Fajr")}</p>
             <h1>
               Ta journée
               <br />
@@ -205,7 +205,7 @@ export default function Landing() {
                 </p>
                 <p className="rw-phone-title">As-salâmu ʿalaykum wa raḥmatullâhi wa barakâtuh</p>
                 <p className="rw-phone-date">
-                  <b>Mardi 27 octobre</b> · 17 joumada al oula 1448 AH
+                  <b>Mardi 27 octobre</b> - 17 joumada al oula 1448 AH
                 </p>
 
                 <div className="rw-phone-prayer">
@@ -242,7 +242,7 @@ export default function Landing() {
                     <span className="rw-phone-label text-(--rw-mauve)!">Rappel du jour</span>
                     <blockquote className="line-clamp-4">« {rappels[0].text} »</blockquote>
                     <figcaption>
-                      <b>{rappels[0].author}</b> · {rappels[0].source}
+                      <b>{rappels[0].author}</b> - {rappels[0].source}
                     </figcaption>
                   </figure>
                 )}
@@ -350,7 +350,7 @@ export default function Landing() {
           <div className="rw-moment-visual">
             <div className="rw-device" aria-label="Exemple : lecture de la sourate al-Kahf">
               <div className="rw-device-head">
-                <b>Al-Kahf · verset 10</b>
+                <b>Al-Kahf - verset 10</b>
                 <span className="rw-ar text-[22px] text-(--rw-green)" dir="rtl" lang="ar">
                   الكهف
                 </span>
@@ -509,7 +509,7 @@ export default function Landing() {
             <span className="rw-wordmark">Rawdah</span>
           </div>
           <div className="rw-wrap rw-footer-bar">
-            <span>© Rawdah · Selon le Coran et la Sunna authentique</span>
+            <span>© Rawdah - Selon le Coran et la Sunna authentique</span>
             <nav className="flex gap-6" aria-label="Pied de page">
               <a href="#journee">La journée</a>
               <a href="#sources">Nos sources</a>

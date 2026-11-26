@@ -81,7 +81,7 @@ export function QuranJournal({
           minute: "2-digit",
           hourCycle: "h23",
         }).format(new Date()),
-        passage: `${progress.surah} · récitation suivie`,
+        passage: `${progress.surah} - récitation suivie`,
         pagesOrVerses: `Versets ${progress.startAyah} à ${progress.lastCompletedAyah}`,
         notes: `Récitateur : ${progress.reciter}`,
       });
@@ -215,7 +215,7 @@ export function QuranJournal({
                     {new Date(`${entry.date}T12:00:00`).toLocaleDateString("fr-FR", {
                       dateStyle: "long",
                     })}
-                    {" · "}
+                    {" - "}
                     {entry.time ?? "07:00"}
                   </time>
                   <h3 className="mt-1 text-[16px] font-semibold">{entry.passage}</h3>

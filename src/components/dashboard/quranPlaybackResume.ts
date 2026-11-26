@@ -39,7 +39,12 @@ export function resumePositionFromReadingLog(entry: {
   pagesOrVerses?: string;
   notes?: string;
 }): QuranResumePosition | null {
-  const surah = entry.passage.match(/^(.+?)\s*·\s*récitation suivie$/i)?.[1];
+  // « Al-Kahf - récitation suivie » (ou « · » dans les entrées enregistrées
+  // avant le 2026-11-26). Le tiret doit être entouré d'espaces : « Al-Kahf »
+  // en contient un.
+  const surah = entry.passage.match(
+    /^(.+?)(?:\s*·\s*|\s+-\s+)récitation suivie$/i,
+  )?.[1];
   const verses = entry.pagesOrVerses?.match(/^Versets\s+(\d+)\s+à\s+(\d+)$/i);
   if (!surah || !verses) return null;
 

@@ -68,7 +68,7 @@ function getNextPrayer(times: PrayerTimes | null) {
     const [hours, minutes] = time.split(":").map(Number);
     return hours * 60 + minutes > nowMinutes;
   });
-  return next ? `${next[0]} · ${next[1]}` : "Fajr demain · horaire à venir";
+  return next ? `${next[0]} - ${next[1]}` : "Fajr demain - horaire à venir";
 }
 
 type DashboardWidgetsProps = {
@@ -153,14 +153,14 @@ export function DashboardWidgets({
     quran: {
       title: "Reprise Al-Qur’an",
       detail: latestQuran
-        ? `${latestQuran.passage}${latestQuran.pagesOrVerses ? ` · ${latestQuran.pagesOrVerses}` : ""}`
+        ? `${latestQuran.passage}${latestQuran.pagesOrVerses ? ` - ${latestQuran.pagesOrVerses}` : ""}`
         : "Ajoute ta première lecture.",
       view: "quran",
     },
     science: {
       title: "Dernière étude",
       detail: latestScience
-        ? `${latestScience.title} · ${latestScience.lesson}`
+        ? `${latestScience.title} - ${latestScience.lesson}`
         : "Ajoute ton premier cours ou livre.",
       view: "science",
     },

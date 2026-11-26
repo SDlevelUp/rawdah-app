@@ -1063,7 +1063,7 @@ export default function Dashboard() {
                 })()}
               </span>
               <span className="text-(--n-muted)">
-                {" · "}
+                {" - "}
                 {formatHijriDate(clock)}
               </span>
             </p>
@@ -1371,7 +1371,7 @@ export default function Dashboard() {
                                       <span className="block text-(--n-muted)">
                                         {source.grades
                                           .map(({ by, grade }) => `${grade} selon ${by}`)
-                                          .join(" · ")}
+                                          .join(" - ")}
                                       </span>
                                     </dd>
                                   ))}
@@ -2393,12 +2393,13 @@ export default function Dashboard() {
             )}
           </div>
 
-          <footer className="mt-10 flex flex-col gap-2 border-t border-(--n-line) pt-5 text-[13px] text-(--n-muted) sm:flex-row sm:items-center sm:justify-between">
-            <span>Rawdah · Suivi quotidien personnel</span>
-            <span>
-              Ton calendrier est enregistré sur ton compte ; tes préférences de
-              rappel sont enregistrées sur cet appareil.
-            </span>
+          <footer className="mt-10 flex flex-col gap-3 border-t border-(--n-line) pt-5 text-[13px] text-(--n-muted) sm:flex-row sm:items-center sm:justify-between">
+            <span>© Rawdah - Selon le Coran et la Sunna authentique</span>
+            <nav className="flex gap-6" aria-label="Pied de page">
+              <a href="/#journee" className="hover:text-(--n-ink)">La journée</a>
+              <a href="/#sources" className="hover:text-(--n-ink)">Nos sources</a>
+              <a href="/#faq" className="hover:text-(--n-ink)">Questions</a>
+            </nav>
           </footer>
         </div>
       </div>
@@ -2591,17 +2592,22 @@ function ReminderRow({
   onToggle: (value: boolean) => void;
 }) {
   return (
-    <div className="flex items-center gap-3 py-4">
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-semibold">{label}</p>
-        <input
-          type="time"
-          value={time}
-          onChange={(event) => onTimeChange(event.target.value)}
-          className="n-input mt-2 h-10! w-32 tabular-nums"
-          aria-label={`Heure du rappel ${label}`}
-        />
-      </div>
+    <div className="flex items-center gap-3 py-3.5">
+      <p className="min-w-0 flex-1 text-[15px] font-semibold">{label}</p>
+      <input
+        type="time"
+        value={time}
+        onChange={(event) => onTimeChange(event.target.value)}
+        onClick={(event) => {
+          try {
+            event.currentTarget.showPicker?.();
+          } catch {
+            // Sélecteur indisponible : la saisie au clavier reste possible.
+          }
+        }}
+        className="n-time-pill"
+        aria-label={`Heure du rappel ${label}`}
+      />
       <Switch
         checked={enabled}
         onCheckedChange={onToggle}

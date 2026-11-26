@@ -212,7 +212,7 @@ export function PlaceSearch({
                     {mosque.distanceKm < 1
                       ? `${Math.round(mosque.distanceKm * 1000)} m`
                       : `${mosque.distanceKm.toFixed(1).replace(".", ",")} km`}
-                    {mosque.address && ` · ${mosque.address}`}
+                    {mosque.address && ` - ${mosque.address}`}
                   </span>
                 </span>
                 <a

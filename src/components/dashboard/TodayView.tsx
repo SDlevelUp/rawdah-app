@@ -225,7 +225,7 @@ export function TodayView({
           <span className="font-semibold text-(--n-ink)">{gregorian}</span>
           {hijri && (
             <>
-              {" · "}
+              {" - "}
               {hijri}
               <span className="text-[13px]"> (date hégirienne indicative)</span>
             </>
@@ -322,7 +322,7 @@ export function TodayView({
             <blockquote className="n-rappel-text">{rappel.text}</blockquote>
             <figcaption className="mt-auto pt-4 text-[13px] text-(--n-muted)">
               <span className="font-semibold text-(--n-ink)">{rappel.author}</span>
-              {" · "}
+              {" - "}
               {/^https?:\/\//.test(rappel.source) ? (
                 <a href={rappel.source} target="_blank" rel="noreferrer" className="n-link font-normal">
                   Source
@@ -372,7 +372,7 @@ export function TodayView({
                 <p className="border-t border-(--n-line) pt-2 text-[13px] text-(--n-muted)">
                   {adhkar.invocation.proof.sources.map((source, index) => (
                     <span key={`${source.collection}-${source.number}`}>
-                      {index > 0 && " · "}
+                      {index > 0 && " - "}
                       <b className="font-semibold text-(--n-ink)">
                         {source.collection} {source.number}
                       </b>{" "}
@@ -464,7 +464,7 @@ export function TodayView({
               <span className="n-label text-(--n-mauve)!">Mon cycle</span>
               <h2 className="n-display mt-3 text-[24px] leading-tight">
                 {cycle.currentPeriodDay !== null
-                  ? `Jour ${cycle.currentPeriodDay} · prière et jeûne en pause`
+                  ? `Jour ${cycle.currentPeriodDay} - prière et jeûne en pause`
                   : "Suivi du cycle"}
               </h2>
               <p className="mt-1 text-[15px] text-(--n-muted)">
