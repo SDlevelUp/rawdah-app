@@ -290,6 +290,9 @@ export function QuranAudioReader({
     const signal = controller.signal;
     setIsLoading(true);
     setError(null);
+    // L'élément audio reste le même : on coupe le verset en cours pendant
+    // le chargement de la nouvelle sourate ou du nouveau récitateur.
+    audioRef.current?.pause();
     setIsPlaying(false);
     setLastCompletedAyah(0);
     setIsProgressSaved(false);
@@ -457,15 +460,38 @@ export function QuranAudioReader({
     surahData,
   ]);
 
+  const activeAyah = surahData?.ayahs.find(
+    (ayah) => ayah.numberInSurah === currentAyah,
+  );
+  const activeAudioUrl = activeAyah?.audio;
+
+  // Un seul élément <audio> pour toute l'écoute : on change sa source au lieu
+  // d'en créer un par verset. Écran verrouillé, les téléphones refusent de
+  // lancer un nouvel élément audio, mais acceptent qu'un élément déjà en
+  // lecture passe au fichier suivant.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !activeAudioUrl) return;
+    if (audio.getAttribute("src") !== activeAudioUrl) audio.setAttribute("src", activeAudioUrl);
+  }, [activeAudioUrl]);
+
   useEffect(() => {
     if (!isPlaying || isLoading) return;
     const audio = audioRef.current;
     if (audio) void audio.play().catch(() => setIsPlaying(false));
   }, [currentAyah, isLoading, isPlaying, surahData]);
 
-  const activeAyah = surahData?.ayahs.find(
-    (ayah) => ayah.numberInSurah === currentAyah,
-  );
+  // Passe tout de suite au fichier d'un verset, dans le même élément audio.
+  // Appelé pendant l'événement « ended » : c'est ce qui permet d'enchaîner
+  // les versets écran verrouillé.
+  const playAyahNow = (ayahNumber: number) => {
+    const audio = audioRef.current;
+    const url = surahData?.ayahs.find((ayah) => ayah.numberInSurah === ayahNumber)?.audio;
+    if (!audio || !url) return;
+    if (audio.getAttribute("src") !== url) audio.setAttribute("src", url);
+    else audio.currentTime = 0;
+    void audio.play().catch(() => setIsPlaying(false));
+  };
   const showsBasmala = selectedSurah !== 1 && selectedSurah !== 9 && !!basmala;
   const jsonVerses = quranJsonData?.sourates[selectedSurah - 1]?.versets;
   const ayahArabic = (ayah: Ayah) => {
@@ -535,13 +561,11 @@ export function QuranAudioReader({
     setIsProgressSaved(false);
     setRepeatNumber(1);
     if (currentAyah < endAyah) {
-      setCurrentAyah((ayah) => ayah + 1);
+      playAyahNow(currentAyah + 1);
+      setCurrentAyah(currentAyah + 1);
     } else if (endBehavior === "repeat") {
+      playAyahNow(startAyah);
       setCurrentAyah(startAyah);
-      if (startAyah === currentAyah && audioRef.current) {
-        audioRef.current.currentTime = 0;
-        void audioRef.current.play();
-      }
     } else if (endBehavior === "next" && selectedSurah < 114) {
       goToSurah(selectedSurah + 1);
     } else {
@@ -605,6 +629,48 @@ export function QuranAudioReader({
     setRepeatNumber(1);
     setIsPlaying(true);
   };
+
+  // Commandes de l'écran verrouillé et des écouteurs (Media Session).
+  const totalAyahs = surahData?.numberOfAyahs ?? 0;
+  const surahTitle = selectedSurahData?.englishName;
+  const reciterName = selectedReciterData?.englishName ?? "";
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || !hasStarted || !surahTitle) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: `${surahTitle} - verset ${currentAyah}`,
+      artist: reciterName,
+      album: "Rawdah",
+      artwork: [{ src: "/logo.svg", sizes: "any", type: "image/svg+xml" }],
+    });
+  }, [currentAyah, hasStarted, reciterName, surahTitle]);
+
+  // Rebranchés à chaque rendu pour toujours viser le verset en cours.
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || !hasStarted) return;
+    const session = navigator.mediaSession;
+    const skipTo = (ayah: number) => {
+      if (ayah < 1 || ayah > totalAyahs) return;
+      hasInteractedRef.current = true;
+      setRepeatNumber(1);
+      playAyahNow(ayah);
+      setCurrentAyah(ayah);
+      if (ayah > endAyah) setEndAyah(ayah);
+      if (ayah < startAyah) setStartAyah(ayah);
+    };
+    const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
+      ["play", () => void audioRef.current?.play()],
+      ["pause", () => audioRef.current?.pause()],
+      ["nexttrack", () => skipTo(currentAyah + 1)],
+      ["previoustrack", () => skipTo(currentAyah - 1)],
+    ];
+    for (const [action, handler] of handlers) {
+      try {
+        session.setActionHandler(action, handler);
+      } catch {
+        // Action non prise en charge par ce navigateur.
+      }
+    }
+  });
 
   const reciterSelect = (
     <label className="grid gap-1 text-[13px] font-semibold">
@@ -844,8 +910,9 @@ export function QuranAudioReader({
           )}
         </div>
 
-        {activeAyah && !isLoading && (
-          <div className="n-player">
+        {/* Toujours monté (masqué pendant un chargement) : l'élément audio
+            doit rester le même pour que l'écoute continue écran verrouillé. */}
+        <div className="n-player" hidden={!activeAyah || isLoading}>
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="font-semibold">
                 {selectedSurahData?.englishName} - verset {currentAyah}
@@ -858,10 +925,8 @@ export function QuranAudioReader({
             </div>
             <audio
               ref={audioRef}
-              key={`${selectedReciter}-${currentAyah}`}
               controls
               preload="none"
-              src={activeAyah.audio}
               className="mt-2 w-full"
               onPlay={() => {
                 hasInteractedRef.current = true;
@@ -931,7 +996,6 @@ export function QuranAudioReader({
               </button>
             </div>
           </div>
-        )}
         <p className="mt-3 text-[13px] leading-5 text-(--n-muted)">
           Audio : Quran.com. Touche un verset pour l’écouter à partir de là.
         </p>
