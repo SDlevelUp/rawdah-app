@@ -19,6 +19,39 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+// Les navigateurs (Safari sur iPhone en premier) bloquent un son lancé après
+// un chargement, hors du geste de l'utilisatrice. Jouer un son silencieux
+// très court pendant le clic autorise ensuite la lecture du verset.
+let silentAudioUrl: string | null = null;
+function unlockAudioPlayback() {
+  try {
+    if (!silentAudioUrl) {
+      const samples = 400;
+      const wav = new DataView(new ArrayBuffer(44 + samples));
+      const text = (offset: number, value: string) =>
+        [...value].forEach((char, i) => wav.setUint8(offset + i, char.charCodeAt(0)));
+      text(0, "RIFF");
+      wav.setUint32(4, 36 + samples, true);
+      text(8, "WAVE");
+      text(12, "fmt ");
+      wav.setUint32(16, 16, true);
+      wav.setUint16(20, 1, true); // PCM
+      wav.setUint16(22, 1, true); // mono
+      wav.setUint32(24, 8000, true);
+      wav.setUint32(28, 8000, true);
+      wav.setUint16(32, 1, true);
+      wav.setUint16(34, 8, true);
+      text(36, "data");
+      wav.setUint32(40, samples, true);
+      for (let i = 0; i < samples; i++) wav.setUint8(44 + i, 128); // silence
+      silentAudioUrl = URL.createObjectURL(new Blob([wav.buffer], { type: "audio/wav" }));
+    }
+    void new Audio(silentAudioUrl).play().catch(() => undefined);
+  } catch {
+    // Sans ce déblocage, le lecteur reste placé sur le verset : un appui suffit.
+  }
+}
+
 const QDC_API = "https://api.quran.com/api/v4";
 const AUDIO_CDN = "https://verses.quran.com/";
 const ALQURAN_API = "https://api.alquran.cloud/v1";
@@ -388,6 +421,7 @@ export function QuranAudioReader({
 
   const resumeSavedPosition = () => {
     if (!savedPosition) return;
+    unlockAudioPlayback();
     playAfterResumeRef.current = true;
     appliedResumeRef.current = null;
     setLocalResume({ ...savedPosition });
