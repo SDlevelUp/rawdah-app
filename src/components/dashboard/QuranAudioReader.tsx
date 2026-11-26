@@ -495,8 +495,28 @@ export function QuranAudioReader({
       )
     : surahs;
 
+  // Suivi du verset en cours : seulement si l'utilisatrice regarde les
+  // versets. Si elle a fait défiler la page (vers la carte de note, par
+  // exemple), le verset précédent n'est plus à l'écran et on ne la ramène
+  // pas en haut ; le suivi reprend dès qu'elle revient sur les versets.
+  // Quand la carte de note se referme, on revient toujours au verset.
+  const followedAyahRef = useRef(currentAyah);
+  const previousFollowRef = useRef(followAyah);
   useEffect(() => {
+    const previousAyah = followedAyahRef.current;
+    const followResumed = followAyah && !previousFollowRef.current;
+    followedAyahRef.current = currentAyah;
+    previousFollowRef.current = followAyah;
     if (!isPlaying || !isActive || !followAyah) return;
+
+    if (!followResumed) {
+      const previous = document.getElementById(`quran-ayah-${previousAyah}`);
+      if (previous) {
+        const rect = previous.getBoundingClientRect();
+        const isOnScreen = rect.bottom > 0 && rect.top < window.innerHeight;
+        if (!isOnScreen) return;
+      }
+    }
     document
       .getElementById(`quran-ayah-${currentAyah}`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
