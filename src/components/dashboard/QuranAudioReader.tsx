@@ -626,12 +626,29 @@ export function QuranAudioReader({
   // Quand la carte de note se referme, on revient toujours au verset.
   const followedAyahRef = useRef(currentAyah);
   const previousFollowRef = useRef(followAyah);
+  const previousActiveRef = useRef(isActive);
   useEffect(() => {
     const previousAyah = followedAyahRef.current;
     const followResumed = followAyah && !previousFollowRef.current;
+    const pageReopened = isActive && !previousActiveRef.current;
     followedAyahRef.current = currentAyah;
     previousFollowRef.current = followAyah;
-    if (!isPlaying || !isActive || !followAyah) return;
+    previousActiveRef.current = isActive;
+    if (!isActive || !followAyah) return;
+
+    // Retour sur la page Coran pendant une écoute : on se place sur le verset
+    // en cours, après le défilement vers le haut de la page fait par la
+    // navigation.
+    if (pageReopened) {
+      if (!hasStarted) return;
+      window.setTimeout(() => {
+        document
+          .getElementById(`quran-ayah-${currentAyahRef.current}`)
+          ?.scrollIntoView({ block: "center" });
+      }, 350);
+      return;
+    }
+    if (!isPlaying) return;
 
     if (!followResumed) {
       const previous = document.getElementById(`quran-ayah-${previousAyah}`);
@@ -644,7 +661,27 @@ export function QuranAudioReader({
     document
       .getElementById(`quran-ayah-${currentAyah}`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [currentAyah, isActive, isPlaying, followAyah]);
+  }, [currentAyah, isActive, isPlaying, followAyah, hasStarted]);
+
+  // Téléphone déverrouillé (ou onglet rouvert) pendant une écoute : les
+  // versets ont avancé sans que la page suive. On se place sur le verset en
+  // cours.
+  const followStateRef = useRef({ isActive, followAyah, hasStarted });
+  useEffect(() => {
+    followStateRef.current = { isActive, followAyah, hasStarted };
+  });
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      const state = followStateRef.current;
+      if (!state.isActive || !state.followAyah || !state.hasStarted) return;
+      document
+        .getElementById(`quran-ayah-${currentAyahRef.current}`)
+        ?.scrollIntoView({ block: "center" });
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
   // Fin du verset en cours (fin du fichier, ou fin de son minutage dans la
   // sourate entière) : répétition, verset suivant ou fin de la plage.
   const handleVerseEnd = () => {
