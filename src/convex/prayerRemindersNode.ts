@@ -7,7 +7,7 @@ import { ADHKAR_TIME_ZONE, localDayWindow, zonedParts, zonedTimeToUtc } from "./
 
 const PRAYER_NAMES: Record<string, string> = {
   fajr: "Fajr",
-  dhuhr: "Dhouhr",
+  dhuhr: "Dhuhr",
   asr: "Asr",
   maghrib: "Maghrib",
   isha: "Isha",

@@ -2412,7 +2412,7 @@ export default function Dashboard() {
 const PRAYER_KEYS = ["fajr", "dhuhr", "asr", "maghrib", "isha"] as const;
 const PRAYER_LABELS: Record<string, string> = {
   fajr: "Fajr",
-  dhuhr: "Dhouhr",
+  dhuhr: "Dhuhr",
   asr: "Asr",
   maghrib: "Maghrib",
   isha: "Isha",
