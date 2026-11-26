@@ -10,6 +10,12 @@ export type Annonce = {
 
 export const annonces: Annonce[] = [
   {
+    id: "2026-11-26-reprendre-ecoute",
+    date: "2026-11-26",
+    title: "Reprendre l’écoute du Coran",
+    text: "En ouvrant la page Coran, tu retrouves la sourate et le verset où tu t’étais arrêtée. Appuie sur « Reprendre » pour relancer la lecture. La position est gardée sur cet appareil.",
+  },
+  {
     id: "2026-11-25-rappels-priere",
     date: "2026-11-25",
     title: "Rappels de prière",

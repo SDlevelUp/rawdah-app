@@ -1,4 +1,5 @@
 import {
+  readQuranResumePosition,
   saveQuranResumePosition,
   type QuranResumePosition,
 } from "@/components/dashboard/quranPlaybackResume";
@@ -186,6 +187,14 @@ export function QuranAudioReader({
   const pendingResumeRef = useRef<QuranResumePosition | null>(null);
   const appliedResumeRef = useRef<string | null>(null);
   const hasInteractedRef = useRef(false);
+  // Dernière écoute enregistrée sur l'appareil, lue une fois à l'ouverture
+  // (avant que la nouvelle session ne l'écrase), pour le bouton « Reprendre ».
+  const [savedPosition, setSavedPosition] = useState(readQuranResumePosition);
+  const [localResume, setLocalResume] = useState<QuranResumePosition | null>(null);
+  const playAfterResumeRef = useRef(false);
+  // Une reprise demandée depuis « Aujourd'hui » passe avant celle du bouton
+  // (la carte « Reprendre » est alors masquée).
+  const resumeTarget = resumePosition ?? localResume;
   const selectedSurahData = surahs.find(
     (surah) => surah.number === selectedSurah,
   );
@@ -308,6 +317,7 @@ export function QuranAudioReader({
   }, [selectedReciter, selectedSurah, reciters, surahs]);
 
   useEffect(() => {
+    const resumePosition = resumeTarget;
     if (!resumePosition || !surahs.length || !reciters.length) return;
     const normalizedSurahName = resumePosition.surah
       .toLocaleLowerCase("en")
@@ -362,11 +372,27 @@ export function QuranAudioReader({
       setCurrentAyah(ayah);
       pendingResumeRef.current = null;
       appliedResumeRef.current = resumeKey;
+      if (playAfterResumeRef.current) {
+        playAfterResumeRef.current = false;
+        setRepeatNumber(1);
+        setIsPlaying(true);
+      }
     } else {
+      // La lecture repart une fois la sourate (ou le récitateur) chargée.
+      autoplayAfterLoadRef.current = playAfterResumeRef.current;
+      playAfterResumeRef.current = false;
       setSelectedSurah(surah.number);
       setSelectedReciter(reciterIdentifier);
     }
-  }, [reciters, resumePosition, selectedReciter, surahData, surahs]);
+  }, [reciters, resumeTarget, selectedReciter, surahData, surahs]);
+
+  const resumeSavedPosition = () => {
+    if (!savedPosition) return;
+    playAfterResumeRef.current = true;
+    appliedResumeRef.current = null;
+    setLocalResume({ ...savedPosition });
+    setSavedPosition(null);
+  };
 
   useEffect(() => {
     if (
@@ -580,8 +606,50 @@ export function QuranAudioReader({
     </label>
   );
 
+  const showResumeCard =
+    savedPosition !== null &&
+    !resumePosition &&
+    !hasStarted &&
+    !isLoading &&
+    surahs.length > 0 &&
+    reciters.length > 0;
+
   return (
     <>
+    {showResumeCard && (
+      <div
+        className="n-card n-card-tint mb-4 flex flex-wrap items-center justify-between gap-3"
+        hidden={!isActive}
+      >
+        <div className="min-w-0">
+          <span className="n-label">Reprendre l’écoute</span>
+          <p className="mt-1 text-[17px] font-semibold">
+            {savedPosition.surah} · verset {savedPosition.ayah}
+          </p>
+          {savedPosition.reciter && (
+            <p className="text-[13px] text-(--n-muted)">{savedPosition.reciter}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={resumeSavedPosition}
+            className="n-btn n-btn-sage px-4! py-2.5! text-sm!"
+          >
+            <Play className="size-4" />
+            Reprendre
+          </button>
+          <button
+            type="button"
+            onClick={() => setSavedPosition(null)}
+            className="n-btn n-btn-ghost px-3! py-2.5! text-sm!"
+            aria-label="Masquer"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      </div>
+    )}
     <div className="n-quran" hidden={!isActive}>
       <aside className="n-card n-quran-aside p-4!" aria-label="Choix de la sourate">
         <label className="relative block">
