@@ -53,6 +53,11 @@ function unlockAudioPlayback() {
 }
 
 const QDC_API = "https://api.quran.com/api/v4";
+const CHAPTER_AUDIO_API = "https://api.qurancdn.com/api/qdc/audio/reciters";
+// Récitateurs sans fichier par sourate chez Quran.com : lecture verset par
+// verset (pas d'écoute écran verrouillé). Mohamed al-Tablawi (11) : son
+// numéro renvoie un autre récitateur dans la liste des sourates entières.
+const VERSE_BY_VERSE_ONLY = new Set(["11"]);
 const AUDIO_CDN = "https://verses.quran.com/";
 const ALQURAN_API = "https://api.alquran.cloud/v1";
 const DEFAULT_RECITER = "7"; // Mishari Rashid al-Afasy
@@ -77,7 +82,14 @@ type Ayah = {
   audio: string;
 };
 
-type SurahAudio = Surah & { ayahs: Ayah[] };
+// Fichier de la sourate entière et minutage de chaque verset (en ms).
+// Un seul son continu : c'est ce qui permet d'écouter écran verrouillé.
+type ChapterAudio = {
+  url: string;
+  timings: { verse: number; from: number; to: number }[];
+};
+
+type SurahAudio = Surah & { ayahs: Ayah[]; chapter: ChapterAudio | null };
 
 type TranslitAyah = { numberInSurah: number; text: string };
 
@@ -135,13 +147,51 @@ function mapReciters(raw: QdcReciter[]): Reciter[] {
 function buildSurahAudio(
   surah: Surah,
   files: QdcAudioFile[],
+  chapter: ChapterAudio | null,
 ): SurahAudio {
   const ayahs: Ayah[] = files.map((f) => {
     const verse = Number(f.verse_key.split(":")[1]);
     return { numberInSurah: verse, text: "", audio: `${AUDIO_CDN}${f.url}` };
   });
   ayahs.sort((a, b) => a.numberInSurah - b.numberInSurah);
-  return { ...surah, ayahs };
+  // Minutage incomplet : on garde la lecture verset par verset.
+  const usableChapter =
+    chapter && chapter.timings.length === surah.numberOfAyahs ? chapter : null;
+  return { ...surah, ayahs, chapter: usableChapter };
+}
+
+type QdcChapterFile = {
+  audio_url?: string;
+  verse_timings?: { verse_key: string; timestamp_from: number; timestamp_to: number }[];
+};
+
+// Fichier de la sourate entière avec son minutage. Null si indisponible :
+// le lecteur repasse alors en lecture verset par verset.
+async function fetchChapterAudio(
+  reciter: string,
+  chapter: number,
+  signal: AbortSignal,
+): Promise<ChapterAudio | null> {
+  if (VERSE_BY_VERSE_ONLY.has(reciter)) return null;
+  try {
+    const data = await fetchQdc<{ audio_files: QdcChapterFile[] }>(
+      `${CHAPTER_AUDIO_API}/${reciter}/audio_files?chapter=${chapter}&segments=true`,
+      signal,
+    );
+    const file = data.audio_files[0];
+    if (!file?.audio_url || !file.verse_timings?.length) return null;
+    const timings = file.verse_timings
+      .map((t) => ({
+        verse: Number(t.verse_key.split(":")[1]),
+        from: t.timestamp_from,
+        to: t.timestamp_to,
+      }))
+      .sort((a, b) => a.verse - b.verse);
+    return { url: file.audio_url, timings };
+  } catch (cause) {
+    if (signal.aborted) throw cause;
+    return null;
+  }
 }
 
 async function fetchQdc<T>(url: string, signal: AbortSignal): Promise<T> {
@@ -249,13 +299,14 @@ export function QuranAudioReader({
         signal,
       ),
       fetchTransliteration(1, signal),
+      fetchChapterAudio(DEFAULT_RECITER, 1, signal),
     ])
-      .then(async ([quranResponse, reciterResponse, audioResponse, translit]) => {
+      .then(async ([quranResponse, reciterResponse, audioResponse, translit, chapterAudio]) => {
         const quranJson = await quranResponse.json() as QuranJson;
         const surahList = surahsFromJson(quranJson);
         const reciterList = mapReciters(reciterResponse.recitations);
         const surah1 = surahList[0];
-        const audioData = buildSurahAudio(surah1, audioResponse.audio_files);
+        const audioData = buildSurahAudio(surah1, audioResponse.audio_files, chapterAudio);
         setQuranJsonData(quranJson);
         setSurahs(surahList);
         setReciters(reciterList);
@@ -302,9 +353,10 @@ export function QuranAudioReader({
         signal,
       ),
       fetchTransliteration(selectedSurah, signal),
+      fetchChapterAudio(selectedReciter, selectedSurah, signal),
     ])
-      .then(([audioResponse, translit]) => {
-        const audioData = buildSurahAudio(surah, audioResponse.audio_files);
+      .then(([audioResponse, translit, chapterAudio]) => {
+        const audioData = buildSurahAudio(surah, audioResponse.audio_files, chapterAudio);
         setSurahData(audioData);
         setTranslitAyahs(translit);
         const pendingResume = pendingResumeRef.current;
@@ -463,34 +515,80 @@ export function QuranAudioReader({
   const activeAyah = surahData?.ayahs.find(
     (ayah) => ayah.numberInSurah === currentAyah,
   );
-  const activeAudioUrl = activeAyah?.audio;
+  const chapter = surahData?.chapter ?? null;
+  // Source : la sourate entière quand son minutage existe (écoute écran
+  // verrouillé possible), sinon le fichier du verset en cours.
+  const audioSource = chapter ? chapter.url : activeAyah?.audio;
+  const timingOf = (ayahNumber: number) =>
+    chapter?.timings.find((timing) => timing.verse === ayahNumber);
 
-  // Un seul élément <audio> pour toute l'écoute : on change sa source au lieu
-  // d'en créer un par verset. Écran verrouillé, les téléphones refusent de
-  // lancer un nouvel élément audio, mais acceptent qu'un élément déjà en
-  // lecture passe au fichier suivant.
+  // Un seul élément <audio> pour toute l'écoute, dont on change la source.
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !activeAudioUrl) return;
-    if (audio.getAttribute("src") !== activeAudioUrl) audio.setAttribute("src", activeAudioUrl);
-  }, [activeAudioUrl]);
+    if (!audio || !audioSource) return;
+    if (audio.getAttribute("src") !== audioSource) audio.setAttribute("src", audioSource);
+  }, [audioSource]);
+
+  // Sourate entière : quand un verset est choisi (clic, reprise, boutons), on
+  // saute à son début dans le fichier. Pendant l'écoute normale, le son est
+  // déjà dans le bon verset et rien ne bouge.
+  useEffect(() => {
+    const audio = audioRef.current;
+    const timing = chapter?.timings.find((item) => item.verse === currentAyah);
+    if (!audio || !timing) return;
+    const position = audio.currentTime * 1000;
+    if (position < timing.from - 250 || position >= timing.to) {
+      audio.currentTime = timing.from / 1000;
+    }
+  }, [chapter, currentAyah]);
+
+  // Valeurs à jour pour les événements audio, qui peuvent arriver plusieurs
+  // fois avant le rendu suivant.
+  const currentAyahRef = useRef(currentAyah);
+  const repeatNumberRef = useRef(repeatNumber);
+  useEffect(() => {
+    currentAyahRef.current = currentAyah;
+  }, [currentAyah]);
+  useEffect(() => {
+    repeatNumberRef.current = repeatNumber;
+  }, [repeatNumber]);
+  const setAyah = (ayahNumber: number) => {
+    currentAyahRef.current = ayahNumber;
+    setCurrentAyah(ayahNumber);
+  };
 
   useEffect(() => {
     if (!isPlaying || isLoading) return;
     const audio = audioRef.current;
-    if (audio) void audio.play().catch(() => setIsPlaying(false));
+    if (!audio) return;
+    // Sourate entière : après un arrêt en fin de plage, le son est au début
+    // du verset suivant. On le replace au début du verset affiché.
+    const timing = surahData?.chapter?.timings.find((item) => item.verse === currentAyah);
+    if (timing) {
+      const position = audio.currentTime * 1000;
+      if (position < timing.from - 250 || position >= timing.to) {
+        audio.currentTime = timing.from / 1000;
+      }
+    }
+    void audio.play().catch(() => setIsPlaying(false));
   }, [currentAyah, isLoading, isPlaying, surahData]);
 
-  // Passe tout de suite au fichier d'un verset, dans le même élément audio.
-  // Appelé pendant l'événement « ended » : c'est ce qui permet d'enchaîner
-  // les versets écran verrouillé.
+  // Place tout de suite la lecture au début d'un verset, dans le même
+  // élément audio (saut dans la sourate entière, ou fichier du verset).
   const playAyahNow = (ayahNumber: number) => {
     const audio = audioRef.current;
-    const url = surahData?.ayahs.find((ayah) => ayah.numberInSurah === ayahNumber)?.audio;
-    if (!audio || !url) return;
-    if (audio.getAttribute("src") !== url) audio.setAttribute("src", url);
-    else audio.currentTime = 0;
-    void audio.play().catch(() => setIsPlaying(false));
+    if (!audio) return;
+    const timing = timingOf(ayahNumber);
+    if (chapter && timing) {
+      if (audio.getAttribute("src") !== chapter.url) audio.setAttribute("src", chapter.url);
+      audio.currentTime = timing.from / 1000;
+    } else {
+      const url = surahData?.ayahs.find((ayah) => ayah.numberInSurah === ayahNumber)?.audio;
+      if (!url) return;
+      if (audio.getAttribute("src") !== url) audio.setAttribute("src", url);
+      else audio.currentTime = 0;
+    }
+    if (audio.paused) void audio.play().catch(() => setIsPlaying(false));
   };
   const showsBasmala = selectedSurah !== 1 && selectedSurah !== 9 && !!basmala;
   const jsonVerses = quranJsonData?.sourates[selectedSurah - 1]?.versets;
@@ -547,31 +645,54 @@ export function QuranAudioReader({
       .getElementById(`quran-ayah-${currentAyah}`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [currentAyah, isActive, isPlaying, followAyah]);
-  const handleEnded = () => {
-    if (repeatCount === 0 || repeatNumber < repeatCount) {
-      setRepeatNumber((count) => count + 1);
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        void audioRef.current.play();
-      }
+  // Fin du verset en cours (fin du fichier, ou fin de son minutage dans la
+  // sourate entière) : répétition, verset suivant ou fin de la plage.
+  const handleVerseEnd = () => {
+    const ayah = currentAyahRef.current;
+    if (repeatCount === 0 || repeatNumberRef.current < repeatCount) {
+      repeatNumberRef.current += 1;
+      setRepeatNumber(repeatNumberRef.current);
+      playAyahNow(ayah);
       return;
     }
 
-    setLastCompletedAyah(currentAyah);
+    setLastCompletedAyah(ayah);
     setIsProgressSaved(false);
+    repeatNumberRef.current = 1;
     setRepeatNumber(1);
-    if (currentAyah < endAyah) {
-      playAyahNow(currentAyah + 1);
-      setCurrentAyah(currentAyah + 1);
+    if (ayah < endAyah) {
+      // Sourate entière : le son continue tout seul sur le verset suivant.
+      if (!chapter || audioRef.current?.paused) playAyahNow(ayah + 1);
+      setAyah(ayah + 1);
     } else if (endBehavior === "repeat") {
       playAyahNow(startAyah);
-      setCurrentAyah(startAyah);
+      setAyah(startAyah);
     } else if (endBehavior === "next" && selectedSurah < 114) {
       goToSurah(selectedSurah + 1);
     } else {
+      audioRef.current?.pause();
       setIsPlaying(false);
     }
   };
+
+  // Sourate entière : repère la fin du verset en cours d'après le minutage.
+  // Vérifié à chaque « timeupdate » de l'audio (aussi écran verrouillé) et
+  // toutes les 100 ms quand la page est visible, pour couper net.
+  const checkChapterProgress = () => {
+    const audio = audioRef.current;
+    if (!audio || !chapter || audio.paused || isLoading) return;
+    const timing = timingOf(currentAyahRef.current);
+    if (timing && audio.currentTime * 1000 >= timing.to) handleVerseEnd();
+  };
+  const checkChapterProgressRef = useRef(checkChapterProgress);
+  useEffect(() => {
+    checkChapterProgressRef.current = checkChapterProgress;
+  });
+  useEffect(() => {
+    if (!isPlaying || !chapter) return;
+    const interval = window.setInterval(() => checkChapterProgressRef.current(), 100);
+    return () => window.clearInterval(interval);
+  }, [chapter, isPlaying]);
 
   function goToSurah(surahNumber: number) {
     if (surahNumber < 1 || surahNumber > 114) return;
@@ -651,9 +772,10 @@ export function QuranAudioReader({
     const skipTo = (ayah: number) => {
       if (ayah < 1 || ayah > totalAyahs) return;
       hasInteractedRef.current = true;
+      repeatNumberRef.current = 1;
       setRepeatNumber(1);
       playAyahNow(ayah);
-      setCurrentAyah(ayah);
+      setAyah(ayah);
       if (ayah > endAyah) setEndAyah(ayah);
       if (ayah < startAyah) setStartAyah(ayah);
     };
@@ -690,6 +812,11 @@ export function QuranAudioReader({
           </option>
         ))}
       </select>
+      {VERSE_BY_VERSE_ONLY.has(selectedReciter) && (
+        <span className="text-[12px] font-normal text-(--n-muted)">
+          Lecture écran verrouillé non disponible pour ce récitateur.
+        </span>
+      )}
     </label>
   );
   const repeatSelect = (
@@ -936,7 +1063,8 @@ export function QuranAudioReader({
               onPause={(event) => {
                 if (!event.currentTarget.ended) setIsPlaying(false);
               }}
-              onEnded={handleEnded}
+              onTimeUpdate={() => checkChapterProgressRef.current()}
+              onEnded={handleVerseEnd}
             >
               Ton navigateur ne peut pas lire cet audio.
             </audio>
