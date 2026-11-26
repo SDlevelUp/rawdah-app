@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { AdhkarInvocation, AdhkarSession } from "@/convex/adhkarData";
 import type { PrayerTimes } from "@/hooks/use-prayer-times";
 import { rappelDuJour } from "@/data/rappels";
+import { formatHijriDate } from "@/lib/hijri";
 
 type TodayModule = "rappel" | "adhkar" | "quran" | "cycle" | "notes";
 
@@ -193,11 +194,7 @@ export function TodayView({
     month: "long",
   }).format(date);
   const gregorian = gregorianRaw.charAt(0).toUpperCase() + gregorianRaw.slice(1);
-  const hijri = new Intl.DateTimeFormat("fr-FR-u-ca-islamic", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date).replace(/\s*(ap|av)\.\s*J\.\s*-?\s*C\.?/gi, "");
+  const hijri = formatHijriDate(date);
 
   const rappel = rappelDuJour(date);
   const showsRappel = modules.rappel && rappel !== null;
@@ -226,9 +223,13 @@ export function TodayView({
         </h1>
         <p className="mt-3 text-[15px] text-(--n-muted)">
           <span className="font-semibold text-(--n-ink)">{gregorian}</span>
-          {" · "}
-          {hijri}
-          <span className="text-[13px]"> (date hégirienne indicative)</span>
+          {hijri && (
+            <>
+              {" · "}
+              {hijri}
+              <span className="text-[13px]"> (date hégirienne indicative)</span>
+            </>
+          )}
         </p>
       </header>
 

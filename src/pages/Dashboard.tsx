@@ -1,4 +1,5 @@
 ﻿import { Switch } from "@/components/ui/switch";
+import { formatHijriDate } from "@/lib/hijri";
 import { CycleCalendar } from "@/components/dashboard/CycleCalendar";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { TopActions } from "@/components/dashboard/TopActions";
@@ -1063,11 +1064,7 @@ export default function Dashboard() {
               </span>
               <span className="text-(--n-muted)">
                 {" · "}
-                {new Intl.DateTimeFormat("fr-FR-u-ca-islamic", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                }).format(clock).replace(/\s*(ap|av)\.\s*J\.\s*-?\s*C\.?/gi, "")}
+                {formatHijriDate(clock)}
               </span>
             </p>
             {prayer.times ? (
