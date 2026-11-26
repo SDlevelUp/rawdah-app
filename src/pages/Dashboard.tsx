@@ -258,6 +258,7 @@ export default function Dashboard() {
   const [isSavingQadaRamadan, setIsSavingQadaRamadan] = useState(false);
   const adhkarPrefs = useQuery(api.prayerReminders.getAdhkarPreferences);
   const saveAdhkarPrefs = useMutation(api.prayerReminders.saveAdhkarPreferences);
+  const savePushSubscription = useMutation(api.prayerReminders.saveSubscription);
   const [adhkarLocal, setAdhkarLocal] = useState<AdhkarReminderLocal>(defaultAdhkarReminders);
   const adhkarSynced = useRef(false);
   const firstName = user?.name?.trim().split(" ")[0];
@@ -624,6 +625,19 @@ export default function Dashboard() {
           return;
         }
       }
+      // S'assurer que la subscription push est bien enregistrée avant de planifier
+      const reg = await navigator.serviceWorker?.ready;
+      const sub = await reg?.pushManager?.getSubscription();
+      if (sub) {
+        const json = sub.toJSON();
+        if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
+          await savePushSubscription({
+            endpoint: json.endpoint,
+            p256dh: json.keys.p256dh,
+            auth: json.keys.auth,
+          });
+        }
+      }
     }
     const updated = {
       ...adhkarLocal,
@@ -632,7 +646,8 @@ export default function Dashboard() {
     setAdhkarLocal(updated);
     try {
       await saveAdhkarPrefs(updated);
-      if (enabled) toast.success("Rappel activé !");
+      const label = key === "morning" ? "Adhkar du matin" : "Adhkar du soir";
+      toast.success(`Rappel « ${label} » ${enabled ? "activé" : "désactivé"}.`);
     } catch {
       toast.error("Impossible d'enregistrer le rappel.");
     }
@@ -2460,7 +2475,12 @@ function PrayerReminderSettings({
 
   const hasLocation = prayer.preferences.coordinates !== null;
 
-  const save = async (newEnabled: boolean, newMinutes: number, newPrayers: typeof prayers) => {
+  const save = async (
+    newEnabled: boolean,
+    newMinutes: number,
+    newPrayers: typeof prayers,
+    successMessage: string,
+  ) => {
     if (!prayer.preferences.coordinates) {
       toast.message("Choisis ta ville dans les horaires de prière pour activer les rappels.");
       return;
@@ -2482,9 +2502,9 @@ function PrayerReminderSettings({
         reminderMinutesBefore: newMinutes,
         prayers: newPrayers,
       });
-      toast.success(newEnabled ? "Rappels de prière activés." : "Rappels de prière désactivés.");
+      toast.success(successMessage);
     } catch {
-      toast.error("Erreur lors de l'enregistrement.");
+      toast.error("Impossible d'enregistrer les rappels de prière.");
     } finally {
       setIsSaving(false);
     }
@@ -2492,18 +2512,37 @@ function PrayerReminderSettings({
 
   const handleToggle = (value: boolean) => {
     setEnabled(value);
-    void save(value, minutesBefore, prayers);
+    void save(
+      value,
+      minutesBefore,
+      prayers,
+      value ? "Rappels de prière activés." : "Rappels de prière désactivés.",
+    );
   };
 
   const handleMinutesChange = (value: number) => {
     setMinutesBefore(value);
-    if (enabled) void save(true, value, prayers);
+    if (enabled)
+      void save(
+        true,
+        value,
+        prayers,
+        value > 0
+          ? `Rappel ${value} min avant chaque prière.`
+          : "Rappel à l'heure de chaque prière.",
+      );
   };
 
   const handlePrayerToggle = (key: typeof PRAYER_KEYS[number], value: boolean) => {
     const updated = { ...prayers, [key]: value };
     setPrayers(updated);
-    if (enabled) void save(true, minutesBefore, updated);
+    if (enabled)
+      void save(
+        true,
+        minutesBefore,
+        updated,
+        `Rappel de ${PRAYER_LABELS[key]} ${value ? "activé" : "désactivé"}.`,
+      );
   };
 
   return (
