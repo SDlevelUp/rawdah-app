@@ -199,6 +199,7 @@ function MushafPageView({
   highlightedVerse,
   onVerseSelect,
   side,
+  compact,
 }: {
   page: number;
   chapters: MushafChapter[];
@@ -207,6 +208,8 @@ function MushafPageView({
   onVerseSelect: (verseKey: string) => void;
   // Double page : page de droite (impaire) ou de gauche, pour la reliure.
   side: "right" | "left" | "single";
+  // Petit écran : marges et cadre réduits pour laisser plus de place au texte.
+  compact: boolean;
 }) {
   const [data, setData] = useState<MushafPage | null>(null);
   const [failed, setFailed] = useState(false);
@@ -297,7 +300,7 @@ function MushafPageView({
     chapters.find((chapter) => chapter.id === surah)?.nameArabic ?? "";
 
   return (
-    <div className="n-mushaf-page" data-side={side}>
+    <div className="n-mushaf-page" data-side={side} data-compact={compact || undefined}>
       <div className="n-mushaf-frame">
         {data && (
           <div className="n-mushaf-running" dir="rtl" lang="ar">
@@ -495,13 +498,13 @@ export function QuranMushaf({
       <div className="n-mushaf-nav">
         <button
           type="button"
-          className="n-btn n-btn-ghost px-3! py-2! text-sm!"
+          className="n-mushaf-next n-btn n-btn-ghost px-3! py-2! text-sm!"
           onClick={goNext}
           disabled={visiblePages[visiblePages.length - 1] >= MUSHAF_PAGES}
         >
           <ChevronLeft className="size-4" /> Page suivante
         </button>
-        <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="n-mushaf-goto flex flex-wrap items-center justify-center gap-2">
           <label className="flex items-center gap-1.5 text-[13px] font-semibold">
             Page
             <input
@@ -535,14 +538,15 @@ export function QuranMushaf({
           >
             {chapters.map((chapter) => (
               <option key={chapter.id} value={chapter.id}>
-                {chapter.id}. {chapter.nameArabic}
+                {chapter.id}. {chapter.nameSimple}
+                {chapter.nameFrench ? ` (${chapter.nameFrench})` : ""} - {chapter.nameArabic}
               </option>
             ))}
           </select>
         </div>
         <button
           type="button"
-          className="n-btn n-btn-ghost px-3! py-2! text-sm!"
+          className="n-mushaf-prev n-btn n-btn-ghost px-3! py-2! text-sm!"
           onClick={goPrevious}
           disabled={visiblePages[0] <= 1}
         >
@@ -600,6 +604,7 @@ export function QuranMushaf({
               <MushafPageView
                 key={item}
                 side={visiblePages.length === 2 ? (index === 0 ? "right" : "left") : "single"}
+                compact={availableWidth > 0 && availableWidth < 640}
                 page={item}
                 chapters={chapters}
                 basmala={basmala}

@@ -2,7 +2,13 @@
 
 const QURAN_API = "https://api.quran.com/api/v4";
 
-export type MushafChapter = { id: number; nameArabic: string; startPage: number };
+export type MushafChapter = {
+  id: number;
+  nameArabic: string;
+  nameSimple: string; // translittération (Al-Fatihah)
+  nameFrench: string; // traduction du nom (L’ouverture)
+  startPage: number;
+};
 
 let chaptersRequest: Promise<MushafChapter[]> | null = null;
 export function fetchMushafChapters(): Promise<MushafChapter[]> {
@@ -10,13 +16,21 @@ export function fetchMushafChapters(): Promise<MushafChapter[]> {
     .then((response) => {
       if (!response.ok) throw new Error("Impossible de charger la liste des sourates.");
       return response.json() as Promise<{
-        chapters: { id: number; name_arabic: string; pages: number[] }[];
+        chapters: {
+          id: number;
+          name_arabic: string;
+          name_simple: string;
+          translated_name?: { name: string };
+          pages: number[];
+        }[];
       }>;
     })
     .then(({ chapters }) =>
       chapters.map((chapter) => ({
         id: chapter.id,
         nameArabic: chapter.name_arabic,
+        nameSimple: chapter.name_simple,
+        nameFrench: chapter.translated_name?.name ?? "",
         startPage: chapter.pages[0],
       })),
     );

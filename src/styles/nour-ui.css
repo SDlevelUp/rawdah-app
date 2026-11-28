@@ -926,7 +926,7 @@
 
 .n-ayah-arabic {
   font-family: "Amiri", "Noto Naskh Arabic", serif;
-  font-size: clamp(24px, 2.8vw, 32px);
+  font-size: clamp(28px, 2.8vw, 32px);
   line-height: 2.1;
   direction: rtl;
   text-align: right;
@@ -2880,13 +2880,30 @@
   --n-tajweed-silent: #9e9e9e;
 }
 
+/* Navigation : sur mobile, « Page suivante » et « Page précédente » sur la
+   même ligne, le choix de page et de sourate en dessous ; sur grand écran,
+   tout sur une ligne. */
 .n-mushaf-nav {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    "next prev"
+    "goto goto";
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.n-mushaf-next { grid-area: next; justify-self: start; }
+.n-mushaf-prev { grid-area: prev; justify-self: end; }
+.n-mushaf-goto { grid-area: goto; }
+
+@media (min-width: 768px) {
+  .n-mushaf-nav {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "next goto prev";
+  }
 }
 
 .n-mushaf-spread {
@@ -2952,6 +2969,19 @@
   border: 1.5px solid var(--n-mushaf-forest);
   border-radius: 11px;
   padding: clamp(10px, 2.4vw, 22px) clamp(10px, 2.2vw, 20px) 8px;
+}
+
+/* Petit écran : cadre plus fin et marges réduites, le texte gagne en taille. */
+.n-mushaf-page[data-compact] {
+  border-width: 1px;
+  border-radius: 10px;
+  padding: 2px;
+}
+
+.n-mushaf-page[data-compact] .n-mushaf-frame {
+  border-width: 1px;
+  border-radius: 8px;
+  padding: 6px 3px 4px;
 }
 
 /* En-tête de page : juz à droite, sourate à gauche. */
