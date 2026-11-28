@@ -115,6 +115,88 @@ function tajweedWords(tagged: string): Segment[][] {
     .filter((word) => !/^[۞۩]+$/.test(word.map((segment) => segment.text).join("")));
 }
 
+// Codage attendu par la police KFGQPC Uthmanic Hafs : le texte Quran.com
+// code le sukun U+0652 et le petit rond « lettre non prononcée » U+06DF ;
+// la police dessine le sukun du mushaf de Médine (tête de khaa) en U+06E1,
+// le petit rond en U+0652, et U+06DF comme un grand rond en pointillés.
+// Conversion à l'affichage seulement (le texte ne change pas).
+function toFontEncoding(text: string): string {
+  return text.replace(/ْ/g, "ۡ").replace(/۟/g, "ْ");
+}
+
+// Le texte tajwid n'utilise pas les mêmes caractères que le texte du mushaf
+// (variantes de sukun, petit alif codé « ٲ », tatweels ajoutées…), et la
+// police KFGQPC affiche mal ces variantes (ronds en pointillés). On affiche
+// donc le texte officiel du mushaf et on y reporte les couleurs : les deux
+// textes sont alignés lettre par lettre (plus longue sous-suite commune) ;
+// un caractère sans équivalent prend la couleur de celui qui le précède.
+function colorOfficialWord(official: string, tajweed: Segment[]): Segment[] {
+  const source = tajweed.flatMap((segment) =>
+    [...segment.text].map((char) => ({ char, group: segment.group })),
+  );
+  const target = [...official];
+  const rows = source.length;
+  const cols = target.length;
+  const table = Array.from({ length: rows + 1 }, () => new Array<number>(cols + 1).fill(0));
+  for (let i = rows - 1; i >= 0; i -= 1) {
+    for (let j = cols - 1; j >= 0; j -= 1) {
+      table[i][j] =
+        source[i].char === target[j]
+          ? table[i + 1][j + 1] + 1
+          : Math.max(table[i + 1][j], table[i][j + 1]);
+    }
+  }
+  const groups: (string | undefined)[] = new Array(cols).fill(undefined);
+  const matched: boolean[] = new Array(cols).fill(false);
+  for (let i = 0, j = 0; i < rows && j < cols; ) {
+    if (source[i].char === target[j]) {
+      groups[j] = source[i].group;
+      matched[j] = true;
+      i += 1;
+      j += 1;
+    } else if (table[i + 1][j] >= table[i][j + 1]) {
+      i += 1;
+    } else {
+      j += 1;
+    }
+  }
+  for (let j = 0; j < cols; j += 1) {
+    if (!matched[j]) groups[j] = j > 0 ? groups[j - 1] : groups.find((_, k) => matched[k]);
+  }
+
+  // Passages de même couleur. Un passage ne doit jamais commencer par un
+  // signe (voyelle, madda, petit alif…) : séparé de sa lettre, il
+  // s'afficherait sur un rond en pointillés. Un signe coloré (un madd…)
+  // reprend la lettre qui le porte, pour que sa couleur reste visible ; un
+  // signe sans couleur rejoint simplement la lettre qui le précède.
+  const segments: Segment[] = [];
+  target.forEach((char, j) => {
+    const last = segments[segments.length - 1];
+    if (last && last.group === groups[j]) last.text += char;
+    else segments.push({ text: char, group: groups[j] });
+  });
+  const merged: Segment[] = [];
+  for (const segment of segments) {
+    let text = segment.text;
+    const leadingMarks = merged.length ? (/^\p{M}+/u.exec(text)?.[0] ?? "") : "";
+    if (leadingMarks) {
+      const previous = merged[merged.length - 1];
+      if (segment.group) {
+        const letter = /\P{M}\p{M}*$/u.exec(previous.text)?.[0] ?? "";
+        text = letter + text;
+        const remaining = previous.text.slice(0, previous.text.length - letter.length);
+        if (remaining) merged[merged.length - 1] = { ...previous, text: remaining };
+        else merged.pop();
+      } else {
+        merged[merged.length - 1] = { ...previous, text: previous.text + leadingMarks };
+        text = text.slice(leadingMarks.length);
+      }
+    }
+    if (text) merged.push({ ...segment, text });
+  }
+  return merged.map((segment) => ({ ...segment, text: toFontEncoding(segment.text) }));
+}
+
 const pageCache = new Map<number, Promise<MushafPage>>();
 
 function fetchMushafPage(page: number): Promise<MushafPage> {
@@ -160,7 +242,11 @@ function fetchMushafPage(page: number): Promise<MushafPage> {
           verseKey: verse.verse_key,
           isEnd,
           verseNumber: verse.verse_number,
-          segments: isEnd ? [] : useColors ? colored[index] : [{ text: word.text_uthmani }],
+          segments: isEnd
+            ? []
+            : useColors
+              ? colorOfficialWord(word.text_uthmani, colored[index])
+              : [{ text: toFontEncoding(word.text_uthmani) }],
         });
       });
     }
