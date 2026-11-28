@@ -970,7 +970,16 @@
   border: 1px solid var(--n-line);
   border-radius: var(--n-radius-lg);
   background: var(--n-paper);
-  padding: 14px 16px;
+  padding: 8px 14px;
+}
+
+/* Lecteur compact : barre audio plus basse. */
+.n-player-audio {
+  height: 36px;
+}
+
+.n-player details summary {
+  font-size: 13px;
 }
 
 @media (max-width: 1023px) {
@@ -2828,4 +2837,285 @@
 .n-date-clear:hover {
   background: var(--n-sage-tint);
   color: var(--n-ink);
+}
+
+/* ── Mode Mushaf (page Coran) ─────────────────────────────────────────── */
+
+.n-quran[data-mode="mushaf"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.n-quran[data-mode="mushaf"] .n-quran-aside {
+  display: none;
+}
+
+.n-mushaf {
+  --n-mushaf-paper: #fdfbf7;
+  --n-mushaf-ink: #1c1a17;
+  /* Cadre aux couleurs de Rawdah : vert sauge et vert sauge foncé. */
+  --n-mushaf-gold: var(--n-sage);
+  --n-mushaf-forest: var(--n-sage-dark);
+  --n-mushaf-active: rgba(212, 175, 55, 0.2);
+  --n-mushaf-hover: rgba(27, 67, 50, 0.07);
+  --n-mushaf-binding: rgba(90, 64, 24, 0.16);
+  --n-tajweed-madd: #d32f2f;
+  --n-tajweed-ghunnah: #2e7d32;
+  --n-tajweed-qalqalah: #1565c0;
+  --n-tajweed-silent: #757575;
+  max-width: 64rem; /* max-w-5xl */
+  margin-inline: auto;
+}
+
+.dark-dashboard .n-mushaf {
+  --n-mushaf-paper: #161b19;
+  --n-mushaf-ink: #ece6da;
+  --n-mushaf-gold: var(--n-sage);
+  --n-mushaf-forest: color-mix(in srgb, var(--n-sage) 70%, var(--n-mushaf-paper));
+  --n-mushaf-active: rgba(212, 175, 55, 0.22);
+  --n-mushaf-hover: rgba(236, 230, 218, 0.07);
+  --n-mushaf-binding: rgba(0, 0, 0, 0.45);
+  --n-tajweed-madd: #ef6b6b;
+  --n-tajweed-ghunnah: #5fbf6a;
+  --n-tajweed-qalqalah: #5aa2f0;
+  --n-tajweed-silent: #9e9e9e;
+}
+
+.n-mushaf-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.n-mushaf-spread {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+/* Zoom : le livre (mis en forme à taille fixe) est mis à l'échelle depuis
+   son coin haut gauche ; le cadre « scaled » prend la taille zoomée et se
+   centre. Au-delà de la largeur disponible, défilement horizontal. */
+.n-mushaf-viewport {
+  overflow-x: auto;
+}
+
+.n-mushaf-scaled {
+  margin-inline: auto;
+}
+
+.n-mushaf-scaled .n-mushaf-spread {
+  transform-origin: top left;
+}
+
+.n-mushaf-zoom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.n-mushaf-spread[data-double] {
+  gap: 0;
+}
+
+/* Page : papier crème, double bordure or (extérieur) et vert forêt (intérieur). */
+.n-mushaf-page {
+  min-width: 0;
+  border: 2px solid var(--n-mushaf-gold);
+  border-radius: 16px;
+  background: var(--n-mushaf-paper);
+  padding: 5px;
+}
+
+/* Livre ouvert : ombre intérieure au centre, côté reliure de chaque page. */
+.n-mushaf-page[data-side="right"] {
+  border-radius: 4px 16px 16px 4px;
+  box-shadow: inset 18px 0 22px -16px var(--n-mushaf-binding);
+}
+
+.n-mushaf-page[data-side="left"] {
+  border-right-width: 0;
+  border-radius: 16px 4px 4px 16px;
+  box-shadow: inset -18px 0 22px -16px var(--n-mushaf-binding);
+}
+
+.n-mushaf-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1.5px solid var(--n-mushaf-forest);
+  border-radius: 11px;
+  padding: clamp(10px, 2.4vw, 22px) clamp(10px, 2.2vw, 20px) 8px;
+}
+
+/* En-tête de page : juz à droite, sourate à gauche. */
+.n-mushaf-running {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--n-mushaf-gold) 55%, transparent);
+  padding-bottom: 4px;
+  color: var(--n-mushaf-forest);
+  /* Amiri : la police KFGQPC dessine les chiffres comme des numéros de verset. */
+  font-family: "Amiri", "Noto Naskh Arabic", serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.n-mushaf-body {
+  min-width: 0;
+}
+
+.n-mushaf-lines {
+  display: flex;
+  flex-direction: column;
+  color: var(--n-mushaf-ink);
+  font-family: "KFGQPC Uthmanic Hafs", "Amiri", serif;
+  font-size: 1.75rem; /* remplacée par la taille calculée */
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.n-mushaf-lines[data-opening] {
+  justify-content: center;
+  min-height: 30em;
+}
+
+/* 15 lignes de même hauteur, justifiées sans étirer les lettres. */
+.n-mushaf-line,
+.n-mushaf-header,
+.n-mushaf-basmala {
+  height: 2em;
+}
+
+.n-mushaf-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  white-space: nowrap;
+}
+
+.n-mushaf-lines[data-opening] .n-mushaf-line {
+  justify-content: center;
+  gap: 0.3em;
+}
+
+.n-mushaf-word {
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.n-mushaf-word[data-hover] {
+  background: var(--n-mushaf-hover);
+}
+
+.n-mushaf-word[data-active] {
+  background: var(--n-mushaf-active);
+}
+
+.n-mushaf-word:focus-visible {
+  outline: 2px solid var(--n-mushaf-forest);
+  outline-offset: 2px;
+}
+
+/* Couleurs du tajwid (désactivables). */
+[data-tajweed="madd"] { color: var(--n-tajweed-madd); }
+[data-tajweed="ghunnah"] { color: var(--n-tajweed-ghunnah); }
+[data-tajweed="qalqalah"] { color: var(--n-tajweed-qalqalah); }
+[data-tajweed="silent"] { color: var(--n-tajweed-silent); }
+.n-mushaf-plain .n-mushaf-lines [data-tajweed] { color: inherit; }
+
+/* Rosace de fin de verset. */
+.n-mushaf-ayah {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15em;
+  height: 1.15em;
+  border: 1.5px solid var(--n-mushaf-gold);
+  border-radius: 999px;
+  padding: 0 0.12em;
+  color: var(--n-mushaf-forest);
+  font-family: "Amiri", serif;
+  font-size: 0.58em;
+  line-height: 1;
+}
+
+.n-mushaf-header,
+.n-mushaf-basmala {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bandeau de début de sourate : double filet or et vert forêt. */
+.n-mushaf-band {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 80%;
+  border: 1.5px solid var(--n-mushaf-gold);
+  border-radius: 999px;
+  outline: 1px solid var(--n-mushaf-forest);
+  outline-offset: -5px;
+  background: color-mix(in srgb, var(--n-mushaf-gold) 10%, var(--n-mushaf-paper));
+  color: var(--n-mushaf-forest);
+  font-size: 0.62em;
+}
+
+.n-mushaf-basmala span {
+  font-size: 0.8em;
+}
+
+.n-mushaf-number {
+  margin-top: 6px;
+  text-align: center;
+  color: var(--n-mushaf-forest);
+  font-family: "Amiri", "Noto Naskh Arabic", serif;
+  font-size: 16px;
+}
+
+.n-mushaf-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  margin-top: 12px;
+  color: var(--n-muted);
+  font-size: 13px;
+}
+
+.n-mushaf-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.n-mushaf-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.n-mushaf-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 8px;
+  color: var(--n-muted);
+  font-size: 15px;
 }

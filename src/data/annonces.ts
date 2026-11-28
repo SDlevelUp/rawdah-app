@@ -10,6 +10,24 @@ export type Annonce = {
 
 export const annonces: Annonce[] = [
   {
+    id: "2026-11-28-mode-mushaf",
+    date: "2026-11-28",
+    title: "Le Coran en mode Mushaf",
+    text: "Sur la page Coran, « Mode Mushaf » affiche le Coran page par page, comme un livre : 604 pages, couleurs du tajwid (madd, ghunna, qalqala, lettres non prononcées) et double page sur grand écran. Touche un verset pour l’écouter. Les boutons − et + règlent la taille.",
+  },
+  {
+    id: "2026-11-28-recitateurs",
+    date: "2026-11-28",
+    title: "Nouveaux récitateurs",
+    text: "La liste change : Yasser Al-Dosari (par défaut), Saad Al-Ghamdi, Hani Ar-Rifai, Mahmoud Khalil Al-Husary, Abdul Basit (Murattal), Maher Al-Muaiqly, Abdul Rahman As-Sudais, Saud Ash-Shuraim et Abu Bakr Ash-Shatri. En changeant de récitateur pendant l’écoute, la lecture reprend au même verset.",
+  },
+  {
+    id: "2026-11-28-ecran-verrouille",
+    date: "2026-11-28",
+    title: "L’écoute continue écran verrouillé",
+    text: "La récitation continue quand tu verrouilles ton téléphone. Depuis l’écran verrouillé, tu peux mettre en pause ou passer au verset suivant. En revenant dans l’app, la page se place sur le verset en cours.",
+  },
+  {
     id: "2026-11-26-reprendre-ecoute",
     date: "2026-11-26",
     title: "Reprendre l’écoute du Coran",
